@@ -1846,69 +1846,51 @@ export class RoarFirekit {
     this._verifyAuthentication();
     this._verifyAdmin();
 
+    // Client-side validations (keep these for quick feedback)
     if ([name, dateOpen, dateClose, assessments].some((param) => param === undefined || param === null)) {
       throw new Error('The parameters name, dateOpen, dateClose, and assessments are required');
     }
 
     if (dateClose < dateOpen) {
       throw new Error(
-        `The end date cannot be before the start date: ${dateClose.toISOString()} < ${dateOpen.toISOString()}`,
+        `The end date cannot be before the start date: ${dateClose.toISOString()} < ${dateOpen.toISOString()}`
       );
     }
 
-    // First add the administration to the database
-    const administrationData: Administration = {
-      name,
-      publicName: publicName ?? name,
-      createdBy: this.roarUid!,
-      groups: orgs.groups ?? [],
-      families: orgs.families ?? [],
-      classes: orgs.classes ?? [],
-      schools: orgs.schools ?? [],
-      districts: orgs.districts ?? [],
-      dateCreated: new Date(),
-      dateOpened: dateOpen,
-      dateClosed: dateClose,
-      assessments: assessments,
-      sequential: sequential,
-      tags: tags,
-      legal: legal,
-      testData: isTestData ?? false,
-    };
+    try {
+      // Prepare data object exactly as the cloud function expects it
+      const data = {
+        name,
+        publicName,
+        assessments,
+        dateOpen,
+        dateClose,
+        sequential,
+        orgs,
+        tags,
+        administrationId,
+        isTestData,
+        legal,
+      };
 
-    await runTransaction(this.admin!.db, async (transaction) => {
-      let administrationDocRef: DocumentReference;
-      if (administrationId !== undefined) {
-        // Set the doc ref to the existing administration
-        administrationDocRef = doc(this.admin!.db, 'administrations', administrationId);
-
-        // Get the existing administration to make sure update is allowed.
-        const docSnap = await transaction.get(administrationDocRef);
-        if (!docSnap.exists()) {
-          throw new Error(`Could not find administration with id ${administrationId}`);
-        }
-      } else {
-        // Create a new administration doc ref
-        administrationDocRef = doc(collection(this.admin!.db, 'administrations'));
+      // Call the cloud function
+      const createAdministrationFn = httpsCallable(this.admin!.functions, 'createAdministration');
+      const result = await createAdministrationFn(data);
+      
+      // Check response and handle any errors
+      if (_get(result.data as any, 'status') !== 'ok') {
+        throw new Error(_get(result.data as any, 'message') || 'Failed to create administration');
       }
-
-      // Create the administration doc in the admin Firestore,
-      transaction.set(administrationDocRef, administrationData, { merge: true });
-
-      // Then add the ID to the admin's list of administrationsCreated
-      const userDocRef = this.dbRefs!.admin.user;
-      transaction.update(userDocRef, {
-        'adminData.administrationsCreated': arrayUnion(administrationDocRef.id),
-      });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    }).catch((error: any) => {
-      console.error('Error creating administration', error.message);
+      
+      return _get(result.data as any, 'administrationId');
+    } catch (error: any) {
+      console.error('Error creating administration', error);
       if (error?.message) {
         throw error;
       } else {
         throw new Error('Error creating administration');
       }
-    });
+    }
   }
 
   /**
