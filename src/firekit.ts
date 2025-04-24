@@ -1754,12 +1754,6 @@ export class RoarFirekit {
     });
   }
 
-
-    // After constructing sendUsers array, send them to the sorting function.
-    const cloudImportUpdateUsers = httpsCallable(this.admin!.functions, 'batchImportUpdate');
-    return await cloudImportUpdateUsers({ users: sendUsers });
-  }
-
   async createStudentWithEmailPassword(email: string, password: string, userData: CreateUserInput) {
     this._verifyAuthentication();
     this._verifyAdmin();
