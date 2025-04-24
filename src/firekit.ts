@@ -2296,29 +2296,6 @@ export class RoarFirekit {
     }
   }
 
-  /**
-   * Retrieves the signing URL for an AdobeSign agreement by its ID and the signer's email address.
-   *
-   * This method invokes a cloud function to get the signing URL of an AdobeSign agreement using the specified
-   * agreement ID and email address. It returns a promise that resolves with the signing URL data.
-   *
-   * @param {string} agreementId - The ID of the AdobeSign agreement.
-   * @param {string} email - The email address of the signer.
-   * @returns {Promise<any>} - A promise that resolves with the signing URL data.
-   * @throws {Error} - If an error occurs while retrieving the AdobeSign signing URL.
-   */
-  async getAdobeSignSigningUrl(agreementId: string, email: string) {
-    const cloudGetAdobeSignSigningUrl = httpsCallable(this.admin!.functions, 'getAdobeSignSigningUrl');
-    try {
-      return await cloudGetAdobeSignSigningUrl({
-        agreementId,
-        email,
-      }).then(({ data }) => data);
-    } catch (error) {
-      console.error('Error getting AdobeSign URL');
-      throw error;
-    }
-  }
 
   // LEVANTE
   async createUsers(userData: LevanteUserData) {
