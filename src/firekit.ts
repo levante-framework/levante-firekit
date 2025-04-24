@@ -1592,30 +1592,6 @@ export class RoarFirekit {
     }
   }
 
-  async completeAssessment(administrationId: string, taskId: string, targetUid?: string) {
-    this._verifyAuthentication();
-
-    // Prepare data for the cloud function
-    const data = {
-      administrationId,
-      taskId,
-      ...(targetUid && { targetUid }), // Conditionally add targetUid
-    };
-
-    try {
-      const completeAssessmentServer = httpsCallable(this.admin!.functions, 'completeAssessmentServer');
-      const result = await completeAssessmentServer(data);
-      // Check result status if needed
-      if ((result.data as any)?.status !== 'ok') {
-         throw new Error(`Server failed to complete assessment: ${(result.data as any)?.message || 'Unknown error'}`);
-      }
-      return result.data; // Or return void/status based on needs
-    } catch (error: any) { // Catch potential cloud function errors
-       console.error('Error calling completeAssessmentServer cloud function:', error);
-       throw new Error(`Failed to complete assessment: ${error.message || error.code || 'Cloud function error'}`);
-    }
-  }
-
   async updateAssessmentRewardShown(administrationId: string, taskId: string) {
     this._verifyAuthentication();
     await runTransaction(this.admin!.db, async (transaction) => {
@@ -2227,7 +2203,7 @@ export class RoarFirekit {
    */
   async upsertOrg(orgData: {
     id?: string;
-    type: "districts" | "schools" | "classes" | "groups";
+    type: 'districts' | 'schools' | 'classes' | 'groups';
     [key: string]: unknown;
   }) {
     this._verifyAuthentication();
@@ -2479,7 +2455,17 @@ export class RoarFirekit {
     return result;
   }
 
-  async editUsers(users: { uid: string; month: string; year: string; group: string; district: string; school: string; class: string }[]) {
+  async editUsers(
+    users: {
+      uid: string;
+      month: string;
+      year: string;
+      group: string;
+      district: string;
+      school: string;
+      class: string;
+    }[],
+  ) {
     this._verifyAuthentication();
     this._verifyAdmin();
 
