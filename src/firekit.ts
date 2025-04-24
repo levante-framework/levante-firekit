@@ -2274,28 +2274,6 @@ export class RoarFirekit {
     }
   }
 
-  /**
-   * Retrieves the status of an AdobeSign agreement by its ID.
-   *
-   * This method invokes a cloud function to get the status of an AdobeSign agreement using the specified
-   * agreement ID. It returns a promise that resolves with the agreement status data.
-   *
-   * @param {string} agreementId - The ID of the AdobeSign agreement.
-   * @returns {Promise<any>} - A promise that resolves with the agreement status data.
-   * @throws {Error} - If an error occurs while retrieving the AdobeSign agreement status.
-   */
-  async getAdobeSignAgreementStatus(agreementId: string) {
-    const cloudGetAdobeSignAgreementStatus = httpsCallable(this.admin!.functions, 'getAdobeSignAgreementStatus');
-    try {
-      return await cloudGetAdobeSignAgreementStatus({
-        agreementId,
-      }).then(({ data }) => data);
-    } catch (error) {
-      console.error('Error getting AdobeSign agreement status');
-      throw error;
-    }
-  }
-
 
   // LEVANTE
   async createUsers(userData: LevanteUserData) {
