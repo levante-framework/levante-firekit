@@ -1740,37 +1740,62 @@ export class RoarFirekit {
   async completeAssessment(administrationId: string, taskId: string, targetUid?: string) {
     this._verifyAuthentication();
 
+    // Get the callable function reference
+    const completeLevanteAssessmentFunction = httpsCallable(this.admin!.functions, 'completeLevanteAssessment');
+
+    // Determine the roarUid to pass (use targetUid if provided, otherwise get the current user's roarUid)
+    // Note: The cloud function also derives roarUid if not passed, but passing it explicitly
+    // makes the client's intent clearer and handles the targetUid case directly.
+    const roarUid = targetUid ?? this.roarUid; // Use cached roarUid if available and targetUid is not set
+
+    // Prepare the data payload
+    const payload: { administrationId: string; taskId: string; targetUid?: string } = {
+        administrationId,
+        taskId,
+    };
+    if (roarUid) {
+        // Pass the determined UID as targetUid to the function
+        // The function will prioritize this over deriving from the caller context
+        payload.targetUid = roarUid;
+    }
+    // If roarUid is somehow null/undefined here and targetUid wasn't provided,
+    // the cloud function will attempt to derive it from the authenticated context.
+
     try {
-      await runTransaction(this.admin!.db, async (transaction) => {
-        // Get the user's assignment document
-        const roarUid = targetUid ?? this.roarUid ?? (await this.getRoarUid());
-        if (!roarUid) {
-          throw new Error('Could not determine user ID');
+        this.verboseLog(`Calling completeLevanteAssessment cloud function with payload:`, payload);
+        const result = await completeLevanteAssessmentFunction(payload);
+        this.verboseLog('completeLevanteAssessment cloud function returned:', result);
+
+        // Check the result status from the cloud function
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if (_get(result.data as any, 'status') !== 'ok') {
+             // The cloud function throws HttpsError on failure, which httpsCallable wraps.
+             // If we reach here, it means the function executed but returned a non-ok status (unexpected).
+             throw new Error(`Cloud function completeLevanteAssessment returned status: ${_get(result.data as any, 'status')}`);
         }
+        // Success
+        return result.data;
 
-        const assignmentDoc = await this.getAssignmentDoc(roarUid, administrationId, transaction);
-
-        // Update this assessment's `completedOn` timestamp
-        await this._updateAssignedAssessment(administrationId, taskId, { completedOn: new Date() }, transaction);
-
-        // Check if all assessments are now completed
-        if (assignmentDoc.exists()) {
-          this.checkAndCompleteAssignment(assignmentDoc, taskId, administrationId, transaction);
-        }
-      });
     } catch (error) {
-      throw new Error(`Failed to complete assessment: ${error instanceof Error ? error.message : String(error)}`);
+        // Errors from httpsCallable are typically FirebaseError with a .code property
+        // The original HttpsError from the function might be nested.
+        console.error(`Failed to complete assessment via cloud function:`, error);
+        // Re-throw the error for the caller to handle
+        throw new Error(`Failed to complete assessment: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
   /**
    * Gets the assignment document for a user
    */
+  // This function is no longer needed here as the logic is moved to the Cloud Function
+  /*
   private async getAssignmentDoc(roarUid: string, administrationId: string, transaction: Transaction) {
     const userAssignmentsRef = collection(this.admin!.db, 'users', roarUid, 'assignments');
     const docRef = doc(userAssignmentsRef, administrationId);
     return await transaction.get(docRef);
   }
+  */
 
   /**
    * Checks if all assessments in an assignment are completed and marks the assignment as complete if so
@@ -1779,6 +1804,8 @@ export class RoarFirekit {
    * as already completed, even though its completedOn timestamp was just set in the transaction
    * and won't be reflected in the document snapshot we're examining.
    */
+   // This function is no longer needed here as the logic is moved to the Cloud Function
+  /*
   private checkAndCompleteAssignment(
     docSnap: DocumentSnapshot,
     currentTaskId: string,
@@ -1793,6 +1820,7 @@ export class RoarFirekit {
       this.completeAssignment(administrationId, transaction);
     }
   }
+  */
 
   async updateAssessmentRewardShown(administrationId: string, taskId: string) {
     this._verifyAuthentication();
