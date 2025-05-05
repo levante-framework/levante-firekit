@@ -1,4 +1,9 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
+
+// Removed top-level Firebase service getters and emulator connections.
+// Initialization and emulator connection should be handled within
+// RoarFirekit.init() via initializeFirebaseProject.
+
 import _get from 'lodash/get';
 import _set from 'lodash/set';
 import _isEmpty from 'lodash/isEmpty';
