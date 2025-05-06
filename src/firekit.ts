@@ -2565,4 +2565,12 @@ export class RoarFirekit {
     const result = await cloudEditUsers({ users });
     return result;
   }
+
+  // Add to RoarFirekit class
+  public isUsingEmulators() {
+    return Boolean(
+      (this.roarConfig.admin.useEmulators || this.roarConfig.app.useEmulators) ||
+      (typeof process !== 'undefined' && process.env.USE_FIREBASE_EMULATORS === 'true')
+    );
+  }
 }

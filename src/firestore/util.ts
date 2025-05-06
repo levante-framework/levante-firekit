@@ -74,6 +74,8 @@ export interface CommonFirebaseConfig {
   apiKey: string;
   siteKey: string;
   debugToken?: string;
+  useEmulators?: boolean;
+  emulatorHost?: string;
 }
 
 export interface EmulatorFirebaseConfig extends CommonFirebaseConfig {
@@ -164,7 +166,11 @@ export const initializeFirebaseProject = async (
     }
   };
 
+  // Check if environment variable is set to override config
+  const useEmulatorsEnv = typeof process !== 'undefined' && process.env.USE_FIREBASE_EMULATORS === 'true';
+  
   if ((config as EmulatorFirebaseConfig).emulatorPorts) {
+    // Existing code for EmulatorFirebaseConfig
     const app = initializeApp({ projectId: config.projectId, apiKey: config.apiKey }, name);
     const ports = (config as EmulatorFirebaseConfig).emulatorPorts;
     const auth = optionallyMarkRaw('auth', getAuth(app));
@@ -189,19 +195,13 @@ export const initializeFirebaseProject = async (
       storage,
     };
   } else {
-    // const { siteKey, debugToken, ...appConfig } = config as LiveFirebaseConfig;
+    // Existing code for production configuration
     const { ...appConfig } = config as LiveFirebaseConfig;
     const app = safeInitializeApp(appConfig as LiveFirebaseConfig, name);
-
-    // Initialize App Check with reCAPTCHA provider before calling any other Firebase services
-    // Get the App Check token for use in Axios calls to Firebase from the client
-    // const appCheck = initializeAppCheckWithRecaptcha(app, siteKey, debugToken);
-    // const { token: appCheckToken } = await getToken(appCheck);
 
     let performance: FirebasePerformance | undefined = undefined;
     try {
       performance = getPerformance(app);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       if (error.code !== 'performance/FB not default') {
         throw error;
@@ -210,13 +210,28 @@ export const initializeFirebaseProject = async (
 
     const kit = {
       firebaseApp: app,
-      // appCheckToken: appCheckToken,
       auth: optionallyMarkRaw('auth', getAuth(app)),
       db: optionallyMarkRaw('db', getFirestore(app)),
       functions: optionallyMarkRaw('functions', getFunctions(app)),
       storage: optionallyMarkRaw('storage', getStorage(app)),
       perf: performance,
     };
+
+    // Connect to emulators if specified in config OR if env var is set
+    if (config.useEmulators || useEmulatorsEnv) {
+      const host = config.emulatorHost || process.env.FIREBASE_EMULATOR_HOST || 'localhost';
+      console.log(`Connecting ${name} project to Firebase emulators on ${host}`);
+      
+      // Default emulator ports
+      connectFirestoreEmulator(kit.db, host, 8080);
+      connectFunctionsEmulator(kit.functions, host, 5001);
+      
+      // Suppress the "Auth emulator" console info message
+      const originalInfo = console.info;
+      console.info = () => {};
+      connectAuthEmulator(kit.auth, `http://${host}:9099`, { disableWarnings: true });
+      console.info = originalInfo;
+    }
 
     // Auth state persistence is set with ``setPersistence`` and specifies how a
     // user session is persisted on a device. We choose in session persistence by
