@@ -171,10 +171,48 @@ export const initializeFirebaseProject = async (
     }
   };
 
-  // Check if environment variable is set to override config
-  const useEmulatorsEnv = typeof process !== 'undefined' && 
-                         typeof process.env !== 'undefined' && 
-                         process.env.USE_FIREBASE_EMULATORS === 'true';
+  // Check if emulators should be used from various sources
+  const checkEmulatorSettings = () => {
+    // 1. Check environment variables
+    const envEmulators = typeof process !== 'undefined' && 
+                        typeof process.env !== 'undefined' && 
+                        process.env.USE_FIREBASE_EMULATORS === 'true';
+    
+    // 2. Check window global variables 
+    const windowEmulators = typeof window !== 'undefined' && window.FIREBASE_EMULATOR_MODE === true;
+    
+    // 3. Check config
+    const configEmulators = config.useEmulators === true;
+    
+    // Return true if any source indicates emulators should be used
+    return envEmulators || windowEmulators || configEmulators;
+  };
+  
+  // Helper to safely get an environment variable from various sources
+  const getEmulatorSetting = (envKey: string, windowKey: string, configValue: any, defaultValue: string): string => {
+    // First check window object (highest priority for browser)
+    if (typeof window !== 'undefined' && window[windowKey as keyof Window] !== undefined) {
+      return String(window[windowKey as keyof Window]);
+    }
+    
+    // Then check environment variables
+    if (typeof process !== 'undefined' && 
+        typeof process.env !== 'undefined' && 
+        process.env[envKey]) {
+      return String(process.env[envKey]);
+    }
+    
+    // Then check config value
+    if (configValue !== undefined) {
+      return String(configValue);
+    }
+    
+    // Default value as fallback
+    return defaultValue;
+  };
+
+  // Check for emulator mode from various sources
+  const useEmulators = checkEmulatorSettings();
   
   if ((config as EmulatorFirebaseConfig).emulatorPorts) {
     // Existing code for EmulatorFirebaseConfig
@@ -185,14 +223,35 @@ export const initializeFirebaseProject = async (
     const functions = optionallyMarkRaw('functions', getFunctions(app));
     const storage = optionallyMarkRaw('storage', getStorage(app));
 
-    connectFirestoreEmulator(db, '127.0.0.1', ports.db);
-    connectFunctionsEmulator(functions, '127.0.0.1', ports.functions);
+    // First connect Auth emulator (critical to do first)
+    try {
+      console.log(`Connecting ${name} Auth to emulator at http://127.0.0.1:${ports.auth}`);
+      const originalInfo = console.info;
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      console.info = () => {};
+      connectAuthEmulator(auth, `http://127.0.0.1:${ports.auth}`, { disableWarnings: true });
+      console.info = originalInfo;
+    } catch (error) {
+      console.error(`Error connecting ${name} Auth to emulator:`, error);
+      throw error;
+    }
 
-    const originalInfo = console.info;
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    console.info = () => {};
-    connectAuthEmulator(auth, `http://127.0.0.1:${ports.auth}`);
-    console.info = originalInfo;
+    // Then connect Firestore emulator
+    try {
+      console.log(`Connecting ${name} Firestore to emulator at 127.0.0.1:${ports.db}`);
+      connectFirestoreEmulator(db, '127.0.0.1', ports.db);
+    } catch (error) {
+      console.error(`Error connecting ${name} Firestore to emulator:`, error);
+      throw error;
+    }
+
+    // Finally connect Functions emulator
+    try {
+      console.log(`Connecting ${name} Functions to emulator at 127.0.0.1:${ports.functions}`);
+      connectFunctionsEmulator(functions, '127.0.0.1', ports.functions);
+    } catch (error) {
+      console.error(`Error connecting ${name} Functions to emulator:`, error);
+    }
 
     return {
       firebaseApp: app,
@@ -224,48 +283,74 @@ export const initializeFirebaseProject = async (
       perf: performance,
     };
 
-    // Connect to emulators if specified in config OR if env var is set
-    if (config.useEmulators || useEmulatorsEnv) {
-      // Safely access process.env
-      const getEnvVar = (key: string, defaultValue: string) => {
-        return (typeof process !== 'undefined' && 
-                typeof process.env !== 'undefined' && 
-                process.env[key]) || defaultValue;
-      };
+    // Connect to emulators if specified in config OR if env var is set OR if window var is set
+    if (useEmulators) {
+      // Get emulator configuration from all possible sources
+      const authHost = getEmulatorSetting(
+        'FIREBASE_AUTH_EMULATOR_HOST', 
+        'FIREBASE_AUTH_EMULATOR_HOST',
+        config.emulatorHost, 
+        '127.0.0.1'
+      );
       
-      const host = config.emulatorHost || getEnvVar('FIREBASE_EMULATOR_HOST', 'localhost');
+      // Parse host and port from AUTH_EMULATOR_HOST which might be in format "host:port"
+      let host = config.emulatorHost || '127.0.0.1';
+      let authPortStr = '9099';
+      
+      if (authHost.includes(':')) {
+        const parts = authHost.split(':');
+        host = parts[0];
+        authPortStr = parts[1];
+      }
+      
       console.log(`Connecting ${name} project to Firebase emulators on ${host}`);
       
-      // Get port numbers from environment variables, config, or use defaults
-      const dbPort = 
-        config.emulatorPorts?.db || 
-        (getEnvVar('FIREBASE_FIRESTORE_EMULATOR_PORT', '') ? 
-         parseInt(getEnvVar('FIREBASE_FIRESTORE_EMULATOR_PORT', '8080'), 10) : 
-         8080);
-        
-      const functionsPort = 
-        config.emulatorPorts?.functions || 
-        (getEnvVar('FIREBASE_FUNCTIONS_EMULATOR_PORT', '') ?
-         parseInt(getEnvVar('FIREBASE_FUNCTIONS_EMULATOR_PORT', '5001'), 10) : 
-         5001);
-        
-      const authPort = 
-        config.emulatorPorts?.auth || 
-        (getEnvVar('FIREBASE_AUTH_EMULATOR_PORT', '') ?
-         parseInt(getEnvVar('FIREBASE_AUTH_EMULATOR_PORT', '9099'), 10) : 
-         9099);
+      // Get port numbers, with clear priority order
+      const authPort = config.emulatorPorts?.auth || 
+                      parseInt(authPortStr, 10) || 
+                      parseInt(getEmulatorSetting('FIREBASE_AUTH_EMULATOR_PORT', '', undefined, '9099'), 10);
+                      
+      const dbPort = config.emulatorPorts?.db || 
+                     parseInt(getEmulatorSetting('FIREBASE_FIRESTORE_EMULATOR_PORT', 'FIRESTORE_EMULATOR_PORT', undefined, '8080'), 10);
+                     
+      const functionsPort = config.emulatorPorts?.functions || 
+                           parseInt(getEmulatorSetting('FIREBASE_FUNCTIONS_EMULATOR_PORT', 'FUNCTIONS_EMULATOR_PORT', undefined, '5001'), 10);
       
-      // Connect to emulators with the configured ports
-      connectFirestoreEmulator(kit.db, host, dbPort);
-      connectFunctionsEmulator(kit.functions, host, functionsPort);
+      console.log(`Using emulator ports - Auth: ${authPort}, Firestore: ${dbPort}, Functions: ${functionsPort}`);
       
-      // Suppress the "Auth emulator" console info message
-      const originalInfo = console.info;
-      console.info = () => {};
-      connectAuthEmulator(kit.auth, `http://${host}:${authPort}`, { disableWarnings: true });
-      console.info = originalInfo;
+      // CRITICAL: Connect to Auth emulator FIRST, before any other operations
+      try {
+        console.log(`Connecting ${name} Auth to emulator at http://${host}:${authPort}`);
+        // Suppress the "Auth emulator" console info message
+        const originalInfo = console.info;
+        console.info = () => {};
+        connectAuthEmulator(kit.auth, `http://${host}:${authPort}`, { disableWarnings: true });
+        console.info = originalInfo;
+        console.log(`Successfully connected ${name} Auth to emulator`);
+      } catch (error) {
+        console.error(`Error connecting ${name} Auth to emulator:`, error);
+        throw error;
+      }
       
-      console.log(`Connected to emulators - Firestore: ${dbPort}, Functions: ${functionsPort}, Auth: ${authPort}`);
+      // Then connect to Firestore emulator
+      try {
+        console.log(`Connecting ${name} Firestore to emulator at ${host}:${dbPort}`);
+        connectFirestoreEmulator(kit.db, host, dbPort);
+        console.log(`Successfully connected ${name} Firestore to emulator`);
+      } catch (error) {
+        console.error(`Error connecting ${name} Firestore to emulator:`, error);
+        throw error;
+      }
+      
+      // Finally connect to Functions emulator
+      try {
+        console.log(`Connecting ${name} Functions to emulator at ${host}:${functionsPort}`);
+        connectFunctionsEmulator(kit.functions, host, functionsPort);
+        console.log(`Successfully connected ${name} Functions to emulator`);
+      } catch (error) {
+        console.error(`Error connecting ${name} Functions to emulator:`, error);
+        // Non-critical, continue anyway
+      }
     }
 
     // Auth state persistence is set with ``setPersistence`` and specifies how a
