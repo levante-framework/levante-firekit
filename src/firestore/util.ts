@@ -76,6 +76,11 @@ export interface CommonFirebaseConfig {
   debugToken?: string;
   useEmulators?: boolean;
   emulatorHost?: string;
+  emulatorPorts?: {
+    db?: number;
+    auth?: number;
+    functions?: number;
+  };
 }
 
 export interface EmulatorFirebaseConfig extends CommonFirebaseConfig {
@@ -222,15 +227,33 @@ export const initializeFirebaseProject = async (
       const host = config.emulatorHost || process.env.FIREBASE_EMULATOR_HOST || 'localhost';
       console.log(`Connecting ${name} project to Firebase emulators on ${host}`);
       
-      // Default emulator ports
-      connectFirestoreEmulator(kit.db, host, 8080);
-      connectFunctionsEmulator(kit.functions, host, 5001);
+      // Get port numbers from environment variables, config, or use defaults
+      const dbPort = 
+        process.env.FIREBASE_FIRESTORE_EMULATOR_PORT ? 
+        parseInt(process.env.FIREBASE_FIRESTORE_EMULATOR_PORT, 10) : 
+        (config.emulatorPorts?.db || 8080);
+        
+      const functionsPort = 
+        process.env.FIREBASE_FUNCTIONS_EMULATOR_PORT ? 
+        parseInt(process.env.FIREBASE_FUNCTIONS_EMULATOR_PORT, 10) : 
+        (config.emulatorPorts?.functions || 5001);
+        
+      const authPort = 
+        process.env.FIREBASE_AUTH_EMULATOR_PORT ? 
+        parseInt(process.env.FIREBASE_AUTH_EMULATOR_PORT, 10) : 
+        (config.emulatorPorts?.auth || 9099);
+      
+      // Connect to emulators with the configured ports
+      connectFirestoreEmulator(kit.db, host, dbPort);
+      connectFunctionsEmulator(kit.functions, host, functionsPort);
       
       // Suppress the "Auth emulator" console info message
       const originalInfo = console.info;
       console.info = () => {};
-      connectAuthEmulator(kit.auth, `http://${host}:9099`, { disableWarnings: true });
+      connectAuthEmulator(kit.auth, `http://${host}:${authPort}`, { disableWarnings: true });
       console.info = originalInfo;
+      
+      console.log(`Connected to emulators - Firestore: ${dbPort}, Functions: ${functionsPort}, Auth: ${authPort}`);
     }
 
     // Auth state persistence is set with ``setPersistence`` and specifies how a
