@@ -2570,7 +2570,10 @@ export class RoarFirekit {
   public isUsingEmulators() {
     return Boolean(
       (this.roarConfig.admin.useEmulators || this.roarConfig.app.useEmulators) ||
-      (typeof process !== 'undefined' && process.env.USE_FIREBASE_EMULATORS === 'true')
+      (typeof window !== 'undefined' && window.FIREBASE_EMULATOR_MODE) ||
+      (typeof process !== 'undefined' && 
+       typeof process.env !== 'undefined' && 
+       process.env.USE_FIREBASE_EMULATORS === 'true')
     );
   }
 }

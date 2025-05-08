@@ -172,7 +172,9 @@ export const initializeFirebaseProject = async (
   };
 
   // Check if environment variable is set to override config
-  const useEmulatorsEnv = typeof process !== 'undefined' && process.env.USE_FIREBASE_EMULATORS === 'true';
+  const useEmulatorsEnv = typeof process !== 'undefined' && 
+                         typeof process.env !== 'undefined' && 
+                         process.env.USE_FIREBASE_EMULATORS === 'true';
   
   if ((config as EmulatorFirebaseConfig).emulatorPorts) {
     // Existing code for EmulatorFirebaseConfig
@@ -224,24 +226,34 @@ export const initializeFirebaseProject = async (
 
     // Connect to emulators if specified in config OR if env var is set
     if (config.useEmulators || useEmulatorsEnv) {
-      const host = config.emulatorHost || process.env.FIREBASE_EMULATOR_HOST || 'localhost';
+      // Safely access process.env
+      const getEnvVar = (key: string, defaultValue: string) => {
+        return (typeof process !== 'undefined' && 
+                typeof process.env !== 'undefined' && 
+                process.env[key]) || defaultValue;
+      };
+      
+      const host = config.emulatorHost || getEnvVar('FIREBASE_EMULATOR_HOST', 'localhost');
       console.log(`Connecting ${name} project to Firebase emulators on ${host}`);
       
       // Get port numbers from environment variables, config, or use defaults
       const dbPort = 
-        process.env.FIREBASE_FIRESTORE_EMULATOR_PORT ? 
-        parseInt(process.env.FIREBASE_FIRESTORE_EMULATOR_PORT, 10) : 
-        (config.emulatorPorts?.db || 8080);
+        config.emulatorPorts?.db || 
+        (getEnvVar('FIREBASE_FIRESTORE_EMULATOR_PORT', '') ? 
+         parseInt(getEnvVar('FIREBASE_FIRESTORE_EMULATOR_PORT', '8080'), 10) : 
+         8080);
         
       const functionsPort = 
-        process.env.FIREBASE_FUNCTIONS_EMULATOR_PORT ? 
-        parseInt(process.env.FIREBASE_FUNCTIONS_EMULATOR_PORT, 10) : 
-        (config.emulatorPorts?.functions || 5001);
+        config.emulatorPorts?.functions || 
+        (getEnvVar('FIREBASE_FUNCTIONS_EMULATOR_PORT', '') ?
+         parseInt(getEnvVar('FIREBASE_FUNCTIONS_EMULATOR_PORT', '5001'), 10) : 
+         5001);
         
       const authPort = 
-        process.env.FIREBASE_AUTH_EMULATOR_PORT ? 
-        parseInt(process.env.FIREBASE_AUTH_EMULATOR_PORT, 10) : 
-        (config.emulatorPorts?.auth || 9099);
+        config.emulatorPorts?.auth || 
+        (getEnvVar('FIREBASE_AUTH_EMULATOR_PORT', '') ?
+         parseInt(getEnvVar('FIREBASE_AUTH_EMULATOR_PORT', '9099'), 10) : 
+         9099);
       
       // Connect to emulators with the configured ports
       connectFirestoreEmulator(kit.db, host, dbPort);
