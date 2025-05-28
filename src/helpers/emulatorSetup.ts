@@ -15,8 +15,14 @@ export const TEST_USER_PASSWORD = 'password123';
  * @returns {boolean} True if in development mode
  */
 export const isDevMode = (): boolean => {
-  // @ts-ignore - These are Vite-specific environment variables
-  return import.meta.env.DEV === true;
+  // Check various development indicators
+  if (typeof process !== 'undefined' && process.env) {
+    if (process.env.NODE_ENV === 'development') return true;
+    if (process.env.DEV === 'true') return true;
+    if (process.env.VITE_DEV === 'true') return true;
+  }
+  
+  return false;
 };
 
 /**

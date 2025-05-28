@@ -8,10 +8,10 @@
         "strict": true,
         "esModuleInterop": true,
         "resolveJsonModule": true,
-        "moduleResolution": "Node",
+        "moduleResolution": "Node"
     },
     "include": [
-        "src",
+        "src"
     ],
     "exclude": [
         "node_modules",
@@ -29,5 +29,5 @@
         "out": "docs",
         "includeVersion": true,
         "readme": "README.md"
-    },
+    }
 }

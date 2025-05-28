@@ -18,7 +18,6 @@ export { RoarAppkit } from './firestore/app/appkit';
 export { RoarAppUser } from './firestore/app/user';
 export { RoarTaskVariant } from './firestore/app/task';
 export { emptyOrg, emptyOrgList, getTreeTableOrgs, initializeFirebaseProject, AuthPersistence } from './firestore/util';
-export * from './firestore/query-assessment';
 
 export function createFirekit({
   useEmulators = false,
@@ -156,9 +155,15 @@ export function createFirekit({
     if (typeof window !== 'undefined') {
       // In browser environment, set window properties that firebaseInit.ts can read
       window.FIREBASE_EMULATOR_MODE = true;
-      window.FIREBASE_AUTH_EMULATOR_HOST = `${emulatorSettings.host}:${emulatorSettings.ports.auth}`;
-      window.FIRESTORE_EMULATOR_HOST = `${emulatorSettings.host}:${emulatorSettings.ports.db}`;
-      window.FUNCTIONS_EMULATOR_HOST = `${emulatorSettings.host}:${emulatorSettings.ports.functions}`;
+      if (emulatorSettings.ports.auth !== undefined) {
+        window.FIREBASE_AUTH_EMULATOR_HOST = `${emulatorSettings.host}:${emulatorSettings.ports.auth}`;
+      }
+      if (emulatorSettings.ports.db !== undefined) {
+        window.FIRESTORE_EMULATOR_HOST = `${emulatorSettings.host}:${emulatorSettings.ports.db}`;
+      }
+      if (emulatorSettings.ports.functions !== undefined) {
+        window.FUNCTIONS_EMULATOR_HOST = `${emulatorSettings.host}:${emulatorSettings.ports.functions}`;
+      }
       
       if (verboseLogging) {
         console.log('[Firekit] Set window emulator settings:', {
@@ -175,9 +180,15 @@ export function createFirekit({
       process.env.USE_FIREBASE_EMULATORS = 'true';
       process.env.FIREBASE_EMULATOR_HOST = emulatorSettings.host;
       process.env.FIREBASE_AUTH_EMULATOR_HOST = `${emulatorSettings.host}:${emulatorSettings.ports.auth}`;
-      process.env.FIREBASE_FIRESTORE_EMULATOR_PORT = emulatorSettings.ports.db.toString();
-      process.env.FIREBASE_AUTH_EMULATOR_PORT = emulatorSettings.ports.auth.toString();
-      process.env.FIREBASE_FUNCTIONS_EMULATOR_PORT = emulatorSettings.ports.functions.toString();
+      if (emulatorSettings.ports.db !== undefined) {
+        process.env.FIREBASE_FIRESTORE_EMULATOR_PORT = emulatorSettings.ports.db.toString();
+      }
+      if (emulatorSettings.ports.auth !== undefined) {
+        process.env.FIREBASE_AUTH_EMULATOR_PORT = emulatorSettings.ports.auth.toString();
+      }
+      if (emulatorSettings.ports.functions !== undefined) {
+        process.env.FIREBASE_FUNCTIONS_EMULATOR_PORT = emulatorSettings.ports.functions.toString();
+      }
       
       if (verboseLogging) {
         console.log('[Firekit] Set process.env emulator settings:', {
@@ -205,9 +216,15 @@ export function createFirekit({
           (typedConfig.admin as any).emulatorPorts = {};
         }
         // Use the emulatorSettings values
-        (typedConfig.admin as any).emulatorPorts.db = emulatorSettings.ports.db;
-        (typedConfig.admin as any).emulatorPorts.auth = emulatorSettings.ports.auth;
-        (typedConfig.admin as any).emulatorPorts.functions = emulatorSettings.ports.functions;
+        if (emulatorSettings.ports.db !== undefined) {
+          (typedConfig.admin as any).emulatorPorts.db = emulatorSettings.ports.db;
+        }
+        if (emulatorSettings.ports.auth !== undefined) {
+          (typedConfig.admin as any).emulatorPorts.auth = emulatorSettings.ports.auth;
+        }
+        if (emulatorSettings.ports.functions !== undefined) {
+          (typedConfig.admin as any).emulatorPorts.functions = emulatorSettings.ports.functions;
+        }
       }
       
       if (typedConfig.app) {
@@ -217,9 +234,15 @@ export function createFirekit({
           (typedConfig.app as any).emulatorPorts = {};
         }
         // Use the emulatorSettings values
-        (typedConfig.app as any).emulatorPorts.db = emulatorSettings.ports.db;
-        (typedConfig.app as any).emulatorPorts.auth = emulatorSettings.ports.auth;
-        (typedConfig.app as any).emulatorPorts.functions = emulatorSettings.ports.functions;
+        if (emulatorSettings.ports.db !== undefined) {
+          (typedConfig.app as any).emulatorPorts.db = emulatorSettings.ports.db;
+        }
+        if (emulatorSettings.ports.auth !== undefined) {
+          (typedConfig.app as any).emulatorPorts.auth = emulatorSettings.ports.auth;
+        }
+        if (emulatorSettings.ports.functions !== undefined) {
+          (typedConfig.app as any).emulatorPorts.functions = emulatorSettings.ports.functions;
+        }
       }
     }
 
