@@ -11,6 +11,14 @@ export interface RoarConfig {
   admin: FirebaseConfig;
 }
 
+// New merged database configuration - single Firebase project
+export interface MergedRoarConfig {
+  merged: FirebaseConfig;
+}
+
+// Union type to support both architectures
+export type RoarConfigType = RoarConfig | MergedRoarConfig;
+
 export interface FirebaseProject {
   firebaseApp: FirebaseApp;
   db: Firestore;

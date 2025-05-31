@@ -1,7 +1,9 @@
 import { RoarFirekit } from './firekit';
+import { RoarMergedFirekit } from './mergedFirekit';
 import configService from './config';
+import { getMergedConfig, shouldUseMergedArchitecture } from './config/mergedConfig';
 import { AuthPersistence } from './firestore/util';
-import { RoarConfig } from './interfaces';
+import { RoarConfig, MergedRoarConfig } from './interfaces';
 
 // Add global type declarations for window properties
 declare global {
@@ -10,16 +12,132 @@ declare global {
     FIREBASE_AUTH_EMULATOR_HOST?: string;
     FIRESTORE_EMULATOR_HOST?: string;
     FUNCTIONS_EMULATOR_HOST?: string;
+    USE_MERGED_DATABASE?: boolean;
   }
 }
 
 export { RoarFirekit } from './firekit';
+export { RoarMergedFirekit } from './mergedFirekit';
 export { RoarAppkit } from './firestore/app/appkit';
 export { RoarAppUser } from './firestore/app/user';
 export { RoarTaskVariant } from './firestore/app/task';
 export { emptyOrg, emptyOrgList, getTreeTableOrgs, initializeFirebaseProject, AuthPersistence } from './firestore/util';
 
 export function createFirekit({
+  useEmulators = false,
+  emulatorHost = 'localhost',
+  emulatorPorts = {
+    db: undefined,
+    auth: undefined,
+    functions: undefined
+  },
+  authPersistence = AuthPersistence.session,
+  verboseLogging = false,
+  customConfig = null,
+  useMergedDatabase = false
+}: {
+  useEmulators?: boolean;
+  emulatorHost?: string;
+  emulatorPorts?: {
+    db?: number;
+    auth?: number;
+    functions?: number;
+  };
+  authPersistence?: AuthPersistence;
+  verboseLogging?: boolean;
+  customConfig?: RoarConfig | MergedRoarConfig | null;
+  useMergedDatabase?: boolean;
+} = {}) {
+  
+  // Check if we should use merged database architecture
+  const shouldUseMerged = useMergedDatabase || shouldUseMergedArchitecture();
+  
+  if (verboseLogging) {
+    console.log('[Firekit] Using merged database architecture:', shouldUseMerged);
+  }
+
+  if (shouldUseMerged) {
+    // Use merged database architecture
+    return createMergedFirekit({
+      useEmulators,
+      emulatorHost,
+      emulatorPorts,
+      authPersistence,
+      verboseLogging,
+      customConfig: customConfig as MergedRoarConfig | null
+    });
+  } else {
+    // Use legacy dual database architecture
+    return createLegacyFirekit({
+      useEmulators,
+      emulatorHost,
+      emulatorPorts,
+      authPersistence,
+      verboseLogging,
+      customConfig: customConfig as RoarConfig | null
+    });
+  }
+}
+
+// Create merged database firekit
+function createMergedFirekit({
+  useEmulators = false,
+  emulatorHost = 'localhost',
+  emulatorPorts = {
+    db: undefined,
+    auth: undefined,
+    functions: undefined
+  },
+  authPersistence = AuthPersistence.session,
+  verboseLogging = false,
+  customConfig = null
+}: {
+  useEmulators?: boolean;
+  emulatorHost?: string;
+  emulatorPorts?: {
+    db?: number;
+    auth?: number;
+    functions?: number;
+  };
+  authPersistence?: AuthPersistence;
+  verboseLogging?: boolean;
+  customConfig?: MergedRoarConfig | null;
+}) {
+  const roarConfig = customConfig || getMergedConfig();
+  
+  // Override emulator settings if specified
+  if (useEmulators) {
+    roarConfig.merged.useEmulators = true;
+    roarConfig.merged.emulatorHost = emulatorHost;
+    
+    if (!('emulatorPorts' in roarConfig.merged)) {
+      (roarConfig.merged as any).emulatorPorts = {};
+    }
+    
+    if (emulatorPorts.db !== undefined) {
+      (roarConfig.merged as any).emulatorPorts.db = emulatorPorts.db;
+    }
+    if (emulatorPorts.auth !== undefined) {
+      (roarConfig.merged as any).emulatorPorts.auth = emulatorPorts.auth;
+    }
+    if (emulatorPorts.functions !== undefined) {
+      (roarConfig.merged as any).emulatorPorts.functions = emulatorPorts.functions;
+    }
+  }
+
+  const firekit = new RoarMergedFirekit({
+    roarConfig,
+    verboseLogging,
+    authPersistence,
+    markRawConfig: {},
+    listenerUpdateCallback: () => {}
+  });
+
+  return firekit.init();
+}
+
+// Create legacy dual database firekit
+function createLegacyFirekit({
   useEmulators = false,
   emulatorHost = 'localhost',
   emulatorPorts = {
@@ -41,7 +159,7 @@ export function createFirekit({
   authPersistence?: AuthPersistence;
   verboseLogging?: boolean;
   customConfig?: RoarConfig | null;
-} = {}) {
+}) {
   // Check for emulator settings in multiple places
   const checkEmulatorMode = () => {
     // Check parameter
