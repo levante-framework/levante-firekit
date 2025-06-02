@@ -498,23 +498,12 @@ export class RoarMergedFirekit {
     const emulatorPorts = this.roarConfig?.merged?.emulatorPorts;
     const projectId = this.roarConfig?.merged?.projectId;
     
-    console.log('[RoarMergedFirekit] restConfig getter called:', {
-      initialized: this._initialized,
-      useEmulators,
-      emulatorPorts,
-      projectId,
-      hasIdToken: !!this._idToken,
-      idTokenReceived: this._idTokenReceived
-    });
-    
     if (useEmulators && emulatorPorts?.db && projectId) {
       const host = this.roarConfig.merged.emulatorHost || 'localhost';
       const port = emulatorPorts.db;
       baseURL = `http://${host}:${port}/v1/projects/${projectId}/databases/(default)/documents`;
-      console.log('[RoarMergedFirekit] Using emulator baseURL:', baseURL);
     } else if (projectId) {
       baseURL = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
-      console.log('[RoarMergedFirekit] Using production baseURL:', baseURL);
     } else {
       // Fallback - this should not happen but prevents undefined baseURL
       console.warn('[RoarMergedFirekit] restConfig: No projectId available, using fallback baseURL');
@@ -525,22 +514,12 @@ export class RoarMergedFirekit {
     const headers: Record<string, string> = {};
     if (this._idToken) {
       headers.Authorization = `Bearer ${this._idToken}`;
-      console.log('[RoarMergedFirekit] Added Authorization header to restConfig');
-    } else {
-      console.log('[RoarMergedFirekit] No ID token available for Authorization header');
     }
 
     const config = {
       headers: headers,
       baseURL: baseURL,
     };
-
-    console.log('[RoarMergedFirekit] restConfig returning:', {
-      hasBaseURL: !!config.baseURL,
-      baseURL: config.baseURL,
-      hasAuthHeader: !!config.headers.Authorization,
-      headerKeys: Object.keys(config.headers)
-    });
 
     return {
       admin: config,
