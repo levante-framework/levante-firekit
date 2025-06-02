@@ -9,10 +9,14 @@ import {
   Unsubscribe,
   AuthError,
   signInWithPopup,
+  signInWithRedirect,
   GoogleAuthProvider,
   linkWithPopup,
   unlink,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  getRedirectResult,
+  sendSignInLinkToEmail,
+  signInWithEmailLink
 } from 'firebase/auth';
 
 import {
@@ -172,6 +176,8 @@ export class RoarMergedFirekit {
     this.verboseLog('Initializing RoarMergedFirekit...');
     
     try {
+      console.log('[RoarMergedFirekit] Starting project initialization with config:', this.roarConfig.merged);
+      
       // Initialize single Firebase project
       this.project = await initializeFirebaseProject(
         this.roarConfig.merged,
@@ -180,12 +186,22 @@ export class RoarMergedFirekit {
         this._markRawConfig,
       );
 
+      console.log('[RoarMergedFirekit] Project initialized successfully:', {
+        appName: this.project.firebaseApp.name,
+        hasAuth: !!this.project.auth,
+        hasDb: !!this.project.db,
+        hasFunctions: !!this.project.functions,
+        hasStorage: !!this.project.storage
+      });
+
       this.verboseLog('Firebase project initialized:', this.project.firebaseApp.name);
 
       // Set up auth state listener
+      console.log('[RoarMergedFirekit] Setting up auth state listener...');
       this._setupAuthStateListener();
 
       this._initialized = true;
+      console.log('[RoarMergedFirekit] Initialization complete, firekit marked as initialized');
       this.verboseLog('RoarMergedFirekit initialization complete');
       
       return this;
@@ -299,6 +315,143 @@ export class RoarMergedFirekit {
     }
   }
 
+  async signInFromRedirectResult(enableCookiesCallback?: () => void) {
+    this._verifyInit();
+    
+    try {
+      // For merged architecture, we can use getRedirectResult from Firebase Auth
+      const result = await getRedirectResult(this.project!.auth);
+      this.verboseLog('Redirect result:', result?.user?.uid);
+      return result;
+    } catch (error) {
+      console.error('Redirect result error:', error);
+      if (enableCookiesCallback && (error as AuthError)?.code === 'auth/web-storage-unsupported') {
+        enableCookiesCallback();
+      }
+      throw error;
+    }
+  }
+
+  async getRedirectResult(enableCookiesCallback?: () => void) {
+    // Alias for signInFromRedirectResult for backward compatibility
+    return this.signInFromRedirectResult(enableCookiesCallback);
+  }
+
+  async signInWithPopup(provider: string) {
+    this._verifyInit();
+    
+    try {
+      let authProvider;
+      if (provider === 'google') {
+        authProvider = new GoogleAuthProvider();
+      } else {
+        throw new Error(`Unsupported provider: ${provider}`);
+      }
+      
+      const result = await signInWithPopup(this.project!.auth, authProvider);
+      this.verboseLog('Popup sign in successful:', result.user.uid);
+      return result;
+    } catch (error) {
+      console.error('Popup sign in error:', error);
+      throw error;
+    }
+  }
+
+  async initiateRedirect(provider: string) {
+    this._verifyInit();
+    
+    try {
+      let authProvider;
+      if (provider === 'google') {
+        authProvider = new GoogleAuthProvider();
+      } else {
+        throw new Error(`Unsupported provider: ${provider}`);
+      }
+      
+      await signInWithRedirect(this.project!.auth, authProvider);
+      this.verboseLog('Redirect initiated for provider:', provider);
+    } catch (error) {
+      console.error('Redirect initiation error:', error);
+      throw error;
+    }
+  }
+
+  async forceIdTokenRefresh() {
+    this._verifyInit();
+    
+    if (!this.project?.user) {
+      throw new Error('User must be authenticated to refresh token');
+    }
+    
+    try {
+      const idTokenResult = await this.project.user.getIdTokenResult(true);
+      this._idToken = idTokenResult.token;
+      this.verboseLog('ID token refreshed');
+      return idTokenResult;
+    } catch (error) {
+      console.error('Token refresh error:', error);
+      throw error;
+    }
+  }
+
+  async sendPasswordResetEmail(email: string) {
+    this._verifyInit();
+    
+    try {
+      await sendPasswordResetEmail(this.project!.auth, email);
+      this.verboseLog('Password reset email sent to:', email);
+    } catch (error) {
+      console.error('Password reset error:', error);
+      throw error;
+    }
+  }
+
+  async createStudentWithEmailPassword(email: string, password: string, userData: any) {
+    // For now, delegate to registerWithEmailAndPassword
+    // This would need full implementation for student-specific logic
+    this.verboseLog('Creating student with email/password:', email);
+    return this.registerWithEmailAndPassword({ email, password });
+  }
+
+  async createUsers(userData: any) {
+    this._verifyAdmin();
+    
+    // This would need full implementation for bulk user creation
+    // For now, throw an error indicating it needs implementation
+    throw new Error('createUsers method needs full implementation for merged architecture');
+  }
+
+  async getLegalDoc(docName: string) {
+    this._verifyInit();
+    
+    try {
+      const docRef = doc(this.project!.db, 'legal', docName);
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        this.verboseLog('Legal document retrieved:', docName);
+        return docSnap.data();
+      } else {
+        throw new Error(`Legal document not found: ${docName}`);
+      }
+    } catch (error) {
+      console.error('Error getting legal document:', error);
+      throw error;
+    }
+  }
+
+  async completeAssessment(adminId: string, taskId: string) {
+    this._verifyAuthentication();
+    
+    // This would need full implementation for assessment completion
+    // For now, just log the action
+    this.verboseLog('Completing assessment:', { adminId, taskId });
+    
+    // Placeholder implementation - would need to update assignment status
+    // and potentially trigger cloud functions
+    return Promise.resolve();
+  }
+
   // User management methods
   async isUsernameAvailable(username: string): Promise<boolean> {
     this._verifyInit();
@@ -334,6 +487,65 @@ export class RoarMergedFirekit {
 
   public get roarUid() {
     return this._roarUid;
+  }
+
+  public get restConfig() {
+    // Always ensure we have a valid base URL, regardless of initialization state
+    let baseURL;
+    
+    // Check if we have emulator configuration
+    const useEmulators = this.roarConfig?.merged?.useEmulators;
+    const emulatorPorts = this.roarConfig?.merged?.emulatorPorts;
+    const projectId = this.roarConfig?.merged?.projectId;
+    
+    console.log('[RoarMergedFirekit] restConfig getter called:', {
+      initialized: this._initialized,
+      useEmulators,
+      emulatorPorts,
+      projectId,
+      hasIdToken: !!this._idToken,
+      idTokenReceived: this._idTokenReceived
+    });
+    
+    if (useEmulators && emulatorPorts?.db && projectId) {
+      const host = this.roarConfig.merged.emulatorHost || 'localhost';
+      const port = emulatorPorts.db;
+      baseURL = `http://${host}:${port}/v1/projects/${projectId}/databases/(default)/documents`;
+      console.log('[RoarMergedFirekit] Using emulator baseURL:', baseURL);
+    } else if (projectId) {
+      baseURL = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
+      console.log('[RoarMergedFirekit] Using production baseURL:', baseURL);
+    } else {
+      // Fallback - this should not happen but prevents undefined baseURL
+      console.warn('[RoarMergedFirekit] restConfig: No projectId available, using fallback baseURL');
+      baseURL = 'https://firestore.googleapis.com/v1/projects/unknown/databases/(default)/documents';
+    }
+
+    // Create headers object, only include Authorization if we have a token
+    const headers: Record<string, string> = {};
+    if (this._idToken) {
+      headers.Authorization = `Bearer ${this._idToken}`;
+      console.log('[RoarMergedFirekit] Added Authorization header to restConfig');
+    } else {
+      console.log('[RoarMergedFirekit] No ID token available for Authorization header');
+    }
+
+    const config = {
+      headers: headers,
+      baseURL: baseURL,
+    };
+
+    console.log('[RoarMergedFirekit] restConfig returning:', {
+      hasBaseURL: !!config.baseURL,
+      baseURL: config.baseURL,
+      hasAuthHeader: !!config.headers.Authorization,
+      headerKeys: Object.keys(config.headers)
+    });
+
+    return {
+      admin: config,
+      app: config,
+    };
   }
 
   public get dbRefs() {
@@ -403,4 +615,58 @@ export class RoarMergedFirekit {
   }
 
   // Add other methods as needed...
+
+  // Direct auth getter for backward compatibility
+  public get auth() {
+    return this.project?.auth;
+  }
+
+  // Backward compatibility getters for dual-database architecture
+  public get admin() {
+    return {
+      auth: this.project?.auth,
+      db: this.project?.db,
+      functions: this.project?.functions,
+      storage: this.project?.storage,
+    };
+  }
+
+  public get app() {
+    return {
+      auth: this.project?.auth,
+      db: this.project?.db,
+      functions: this.project?.functions,
+      storage: this.project?.storage,
+    };
+  }
+
+  async initiateLoginWithEmailLink({ email, redirectUrl }: { email: string; redirectUrl: string }) {
+    this._verifyInit();
+    
+    try {
+      const actionCodeSettings = {
+        url: redirectUrl,
+        handleCodeInApp: true,
+      };
+      
+      await sendSignInLinkToEmail(this.project!.auth, email, actionCodeSettings);
+      this.verboseLog('Email link sent to:', email);
+    } catch (error) {
+      console.error('Email link initiation error:', error);
+      throw error;
+    }
+  }
+
+  async signInWithEmailLink({ email, emailLink }: { email: string; emailLink: string }) {
+    this._verifyInit();
+    
+    try {
+      const result = await signInWithEmailLink(this.project!.auth, email, emailLink);
+      this.verboseLog('Email link sign in successful:', result.user.uid);
+      return result;
+    } catch (error) {
+      console.error('Email link sign in error:', error);
+      throw error;
+    }
+  }
 } 

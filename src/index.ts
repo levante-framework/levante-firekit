@@ -23,7 +23,7 @@ export { RoarAppUser } from './firestore/app/user';
 export { RoarTaskVariant } from './firestore/app/task';
 export { emptyOrg, emptyOrgList, getTreeTableOrgs, initializeFirebaseProject, AuthPersistence } from './firestore/util';
 
-export function createFirekit({
+export async function createFirekit({
   useEmulators = false,
   emulatorHost = 'localhost',
   emulatorPorts = {
@@ -58,7 +58,7 @@ export function createFirekit({
 
   if (shouldUseMerged) {
     // Use merged database architecture
-    return createMergedFirekit({
+    return await createMergedFirekit({
       useEmulators,
       emulatorHost,
       emulatorPorts,
@@ -80,7 +80,7 @@ export function createFirekit({
 }
 
 // Create merged database firekit
-function createMergedFirekit({
+async function createMergedFirekit({
   useEmulators = false,
   emulatorHost = 'localhost',
   emulatorPorts = {
@@ -103,7 +103,17 @@ function createMergedFirekit({
   verboseLogging?: boolean;
   customConfig?: MergedRoarConfig | null;
 }) {
-  const roarConfig = customConfig || getMergedConfig();
+  console.log('[createMergedFirekit] Starting with config:', {
+    useEmulators,
+    emulatorHost,
+    emulatorPorts,
+    hasCustomConfig: !!customConfig,
+    customConfig: customConfig
+  });
+  
+  const roarConfig = customConfig || await getMergedConfig();
+  
+  console.log('[createMergedFirekit] Final roarConfig:', roarConfig);
   
   // Override emulator settings if specified
   if (useEmulators) {
@@ -123,8 +133,11 @@ function createMergedFirekit({
     if (emulatorPorts.functions !== undefined) {
       (roarConfig.merged as any).emulatorPorts.functions = emulatorPorts.functions;
     }
+    
+    console.log('[createMergedFirekit] Updated roarConfig with emulator settings:', roarConfig);
   }
 
+  console.log('[createMergedFirekit] Creating RoarMergedFirekit instance...');
   const firekit = new RoarMergedFirekit({
     roarConfig,
     verboseLogging,
@@ -133,7 +146,27 @@ function createMergedFirekit({
     listenerUpdateCallback: () => {}
   });
 
-  return firekit.init();
+  console.log('[createMergedFirekit] Calling firekit.init()...');
+  const initializedFirekit = await firekit.init();
+  
+  console.log('[createMergedFirekit] Firekit initialized:', {
+    type: initializedFirekit.constructor.name,
+    initialized: initializedFirekit.initialized,
+    hasAuth: !!initializedFirekit.auth,
+    hasAdmin: !!initializedFirekit.admin,
+    hasApp: !!initializedFirekit.app,
+    hasProject: !!(initializedFirekit as any).project,
+    projectAuth: !!(initializedFirekit as any).project?.auth,
+    projectDb: !!(initializedFirekit as any).project?.db,
+    projectFunctions: !!(initializedFirekit as any).project?.functions,
+    hasSignInFromRedirectResult: typeof initializedFirekit.signInFromRedirectResult === 'function',
+    hasGetRedirectResult: typeof initializedFirekit.getRedirectResult === 'function',
+    availableMethods: Object.getOwnPropertyNames(Object.getPrototypeOf(initializedFirekit)).filter(name => 
+      name.includes('signIn') || name.includes('auth') || name.includes('redirect')
+    )
+  });
+  
+  return initializedFirekit;
 }
 
 // Create legacy dual database firekit
