@@ -416,9 +416,22 @@ export class RoarMergedFirekit {
   async createUsers(userData: any) {
     this._verifyAdmin();
     
-    // This would need full implementation for bulk user creation
-    // For now, throw an error indicating it needs implementation
-    throw new Error('createUsers method needs full implementation for merged architecture');
+    if (!this.project?.functions) {
+      throw new Error('Firebase Functions not available');
+    }
+    
+    try {
+      this.verboseLog('Calling createUsers function with data:', userData);
+      
+      const createUsersFunction = httpsCallable(this.project.functions, 'createUsers');
+      const result = await createUsersFunction(userData);
+      
+      this.verboseLog('createUsers function completed successfully');
+      return result.data;
+    } catch (error) {
+      console.error('Error calling createUsers function:', error);
+      throw error;
+    }
   }
 
   async getLegalDoc(docName: string) {
@@ -645,6 +658,90 @@ export class RoarMergedFirekit {
       return result;
     } catch (error) {
       console.error('Email link sign in error:', error);
+      throw error;
+    }
+  }
+
+  async getCurrentUserToken(): Promise<string> {
+    this._verifyAuthentication();
+    
+    if (!this.project?.user) {
+      throw new Error('No authenticated user found');
+    }
+    
+    try {
+      const idTokenResult = await this.project.user.getIdTokenResult(true);
+      return idTokenResult.token;
+    } catch (error) {
+      console.error('Error getting current user token:', error);
+      throw error;
+    }
+  }
+
+  async upsertOrg(orgData: any) {
+    this._verifyAdmin();
+    
+    if (!this.project?.functions) {
+      throw new Error('Firebase Functions not available');
+    }
+    
+    try {
+      this.verboseLog('Calling upsertOrg function with data:', orgData);
+      console.log('upsertOrg: Raw orgData received:', JSON.stringify(orgData, null, 2));
+      
+      const upsertOrgFunction = httpsCallable(this.project.functions, 'upsertOrg');
+      // Wrap the orgData in the expected structure for the Firebase Functions
+      const payload = { orgData };
+      console.log('upsertOrg: Payload being sent to Firebase Functions:', JSON.stringify(payload, null, 2));
+      
+      const result = await upsertOrgFunction(payload);
+      
+      this.verboseLog('upsertOrg function completed successfully');
+      console.log('upsertOrg: Result from Firebase Functions:', result);
+      return result.data;
+    } catch (error) {
+      console.error('Error calling upsertOrg function:', error);
+      throw error;
+    }
+  }
+
+  async createOrg(orgType: string, orgData: any, testData: boolean = false, demoData: boolean = false, orgId?: string) {
+    this._verifyAdmin();
+    
+    if (!this.project?.functions) {
+      throw new Error('Firebase Functions not available');
+    }
+    
+    try {
+      this.verboseLog('Calling upsertOrg function for createOrg with data:', { orgType, orgData, testData, demoData, orgId });
+      
+      // Prepare data for upsertOrg function
+      const upsertData = {
+        ...orgData,
+        type: orgType,
+        testData,
+        demoData,
+      };
+      
+      // If orgId is provided, it's an update operation
+      if (orgId) {
+        upsertData.id = orgId;
+      }
+      
+      console.log('createOrg: Prepared upsertData:', JSON.stringify(upsertData, null, 2));
+      
+      const upsertOrgFunction = httpsCallable(this.project.functions, 'upsertOrg');
+      // Wrap the data in the expected structure for the Firebase Functions
+      const payload = { orgData: upsertData };
+      console.log('createOrg: Payload being sent to Firebase Functions:', JSON.stringify(payload, null, 2));
+      
+      const result = await upsertOrgFunction(payload);
+      
+      this.verboseLog('createOrg (via upsertOrg) function completed successfully');
+      console.log('createOrg: Result from Firebase Functions:', result);
+      return result.data;
+    } catch (error) {
+      console.error('Error calling createOrg function:', error);
       throw error;
     }
   }
