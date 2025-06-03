@@ -706,42 +706,170 @@ export class RoarMergedFirekit {
   }
 
   async createOrg(orgType: string, orgData: any, testData: boolean = false, demoData: boolean = false, orgId?: string) {
+    this._verifyAuthentication();
     this._verifyAdmin();
-    
+
+    this.verboseLog('Creating organization with data:', { orgType, orgData, testData, demoData, orgId });
+
     if (!this.project?.functions) {
       throw new Error('Firebase Functions not available');
     }
+
+    const createOrgFunction = httpsCallable(this.project.functions, 'createOrg');
     
     try {
-      this.verboseLog('Calling upsertOrg function for createOrg with data:', { orgType, orgData, testData, demoData, orgId });
+      const result = await createOrgFunction({
+        orgData: {
+          ...orgData,
+          type: orgType,
+          testData,
+          demoData,
+          ...(orgId && { id: orgId })
+        }
+      });
       
-      // Prepare data for upsertOrg function
-      const upsertData = {
-        ...orgData,
-        type: orgType,
-        testData,
-        demoData,
-      };
-      
-      // If orgId is provided, it's an update operation
-      if (orgId) {
-        upsertData.id = orgId;
-      }
-      
-      console.log('createOrg: Prepared upsertData:', JSON.stringify(upsertData, null, 2));
-      
-      const upsertOrgFunction = httpsCallable(this.project.functions, 'upsertOrg');
-      // Wrap the data in the expected structure for the Firebase Functions
-      const payload = { orgData: upsertData };
-      console.log('createOrg: Payload being sent to Firebase Functions:', JSON.stringify(payload, null, 2));
-      
-      const result = await upsertOrgFunction(payload);
-      
-      this.verboseLog('createOrg (via upsertOrg) function completed successfully');
-      console.log('createOrg: Result from Firebase Functions:', result);
+      this.verboseLog('Organization created successfully:', result.data);
       return result.data;
     } catch (error) {
-      console.error('Error calling createOrg function:', error);
+      this.verboseLog('Error creating organization:', error);
+      throw error;
+    }
+  }
+
+  async getAdministrations({ testData = false, idsOnly = true, restrictToOpenAdministrations = false }: { 
+    testData?: boolean; 
+    idsOnly?: boolean; 
+    restrictToOpenAdministrations?: boolean; 
+  } = {}) {
+    this._verifyAuthentication();
+    this._verifyAdmin();
+
+    this.verboseLog('Getting administrations with options:', { testData, idsOnly, restrictToOpenAdministrations });
+
+    if (!this.project?.functions) {
+      throw new Error('Firebase Functions not available');
+    }
+
+    const getAdministrationsFunction = httpsCallable(this.project.functions, 'getAdministrations');
+    
+    try {
+      const result = await getAdministrationsFunction({
+        testData,
+        idsOnly,
+        restrictToOpenAdministrations
+      });
+      
+      this.verboseLog('Administrations retrieved successfully:', result.data);
+      
+      // The function returns { status: "ok", data: administrations }
+      // We want to return just the data (array of administration IDs)
+      return (result.data as any)?.data || [];
+    } catch (error) {
+      this.verboseLog('Error getting administrations:', error);
+      throw error;
+    }
+  }
+
+  async getTasks(registeredOnly: boolean = true, allData: boolean = false) {
+    this._verifyAuthentication();
+
+    this.verboseLog('Getting tasks from Firestore', { registeredOnly, allData });
+
+    if (!this.project?.db) {
+      throw new Error('Firestore not available');
+    }
+
+    try {
+      const tasksCollection = collection(this.project.db, 'tasks');
+      let tasksQuery = query(tasksCollection);
+
+      // Filter for registered tasks only if requested
+      if (registeredOnly) {
+        tasksQuery = query(tasksCollection, where('registered', '==', true));
+      }
+
+      const querySnapshot = await getDocs(tasksQuery);
+      const tasks = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      this.verboseLog('Tasks retrieved successfully:', { count: tasks.length, registeredOnly, allData });
+      
+      return tasks;
+    } catch (error) {
+      this.verboseLog('Error getting tasks:', error);
+      throw error;
+    }
+  }
+
+  async getVariants(registeredOnly: boolean = false) {
+    this._verifyAuthentication();
+
+    this.verboseLog('Getting variants from Firestore', { registeredOnly });
+
+    if (!this.project?.db) {
+      throw new Error('Firestore not available');
+    }
+
+    try {
+      const variantsCollection = collection(this.project.db, 'variants');
+      let variantsQuery = query(variantsCollection);
+
+      // Filter for registered variants only if requested
+      if (registeredOnly) {
+        variantsQuery = query(variantsCollection, where('registered', '==', true));
+      }
+
+      const querySnapshot = await getDocs(variantsQuery);
+      const variants: any[] = [];
+
+      // Get all unique task IDs from variants
+      const taskIds = new Set<string>();
+      querySnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.taskId) {
+          taskIds.add(data.taskId);
+        }
+      });
+
+      // Fetch all task documents
+      const tasksMap = new Map();
+      if (taskIds.size > 0) {
+        const tasksCollection = collection(this.project.db, 'tasks');
+        const tasksQuery = query(tasksCollection, where('__name__', 'in', Array.from(taskIds)));
+        const tasksSnapshot = await getDocs(tasksQuery);
+        
+        tasksSnapshot.docs.forEach(doc => {
+          tasksMap.set(doc.id, {
+            id: doc.id,
+            ...doc.data()
+          });
+        });
+      }
+
+      // Combine variants with their task data
+      querySnapshot.docs.forEach(doc => {
+        const variantData = doc.data();
+        const taskData = tasksMap.get(variantData.taskId);
+        
+        if (taskData) {
+          variants.push({
+            id: doc.id,
+            variant: {
+              id: doc.id,
+              ...variantData
+            },
+            task: taskData
+          });
+        }
+      });
+
+      this.verboseLog('Variants retrieved successfully:', { count: variants.length, registeredOnly });
+      
+      return variants;
+    } catch (error) {
+      this.verboseLog('Error getting variants:', error);
       throw error;
     }
   }
