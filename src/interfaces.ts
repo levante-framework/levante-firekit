@@ -28,6 +28,8 @@ export enum UserType {
   admin = 'admin',
   super_admin = 'super_admin',
   student = 'student',
+  caregiver = 'caregiver',
+  teacher = 'teacher',
   guest = 'guest',
 }
 

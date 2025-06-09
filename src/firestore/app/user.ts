@@ -99,15 +99,15 @@ export class RoarAppUser {
     }
 
     if (roarUid === undefined && userType !== UserType.guest) {
-      throw new Error('All non-guest ROAR users must be created with a ROAR UID.');
+      throw new Error('All non-guest LEVANTE users must be created with a LEVANTE UID.');
     }
 
     if (userType === UserType.guest && roarUid !== undefined) {
-      throw new Error('Guest ROAR users cannot have a ROAR UID.');
+      throw new Error('Guest LEVANTE users cannot have a LEVANTE UID.');
     }
 
     if (userType !== UserType.guest && assessmentPid === undefined) {
-      throw new Error('All non-guest ROAR users must have an assessment PID on instantiation.');
+      throw new Error('All non-guest LEVANTE users must have an assessment PID on instantiation.');
     }
 
     this.db = db;
@@ -145,7 +145,7 @@ export class RoarAppUser {
 
   private async _setUserData() {
     if (this.userType !== UserType.guest) {
-      throw new Error('Cannot set user data on a non-guest ROAR user.');
+      throw new Error('Cannot set user data on a non-guest LEVANTE user.');
     }
 
     this.userData = removeUndefined({
