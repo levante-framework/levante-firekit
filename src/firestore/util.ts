@@ -137,7 +137,7 @@ export const initializeFirebaseProject = async (
 
   if (emulatorConfig) {
     console.log('Initializing Firebase emulator', emulatorConfig);
-    const app = initializeApp({ projectId: config.projectId, apiKey: config.apiKey }, name);
+    const app = initializeApp({ projectId: emulatorConfig ? 'demo-emulator' : config.projectId, apiKey: config.apiKey }, name);
     const auth = optionallyMarkRaw('auth', getAuth(app));
     const db = optionallyMarkRaw('db', getFirestore(app));
     const functions = optionallyMarkRaw('functions', getFunctions(app));
