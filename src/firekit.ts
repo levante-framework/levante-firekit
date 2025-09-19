@@ -40,12 +40,7 @@ import {
 } from 'firebase/firestore';
 import { httpsCallable, HttpsCallableResult } from 'firebase/functions';
 
-import {
-  AuthPersistence,
-  MarkRawConfig,
-  emptyOrgList,
-  initializeFirebaseProject,
-} from './firestore/util';
+import { AuthPersistence, MarkRawConfig, emptyOrgList, initializeFirebaseProject } from './firestore/util';
 import {
   Assessment,
   FirebaseProject,
@@ -296,7 +291,7 @@ export class RoarFirekit {
    * If the instance has not been initialized, it throws an error with a descriptive message.
    *
    * @throws {Error} - If the RoarFirekit instance has not been initialized.
-   * 
+   *
    */
   private _verifyInit() {
     if (!this._initialized) {
@@ -307,7 +302,6 @@ export class RoarFirekit {
   //           +--------------------------------+
   // ----------|  Begin Authentication Methods  |----------
   //           +--------------------------------+
-
 
   /**
    * Verifies if the user is authenticated in the application.
@@ -361,7 +355,7 @@ export class RoarFirekit {
             this._adminOrgs = data?.claims?.adminOrgs;
             this._superAdmin = data?.claims?.super_admin;
 
-            if ( this.roarConfig.admin.projectId.includes('levante') ) {
+            if (this.roarConfig.admin.projectId.includes('levante')) {
               this._admin = data?.claims?.admin || false;
             }
 
@@ -430,7 +424,7 @@ export class RoarFirekit {
     this.verboseLog('Entry point for listenToTokenChange, called with', _type);
     this._verifyInit();
     this.verboseLog('Checking for existance of tokenListener with type', _type);
-    if ((!this._adminTokenListener && _type === 'admin')) {
+    if (!this._adminTokenListener && _type === 'admin') {
       this.verboseLog('Token listener does not exist, create now.');
       return onIdTokenChanged(firekit.auth, async (user) => {
         this.verboseLog('onIdTokenChanged body');
@@ -448,7 +442,7 @@ export class RoarFirekit {
         this.verboseLog('Calling listenerUpdateCallback from listenToTokenChange', _type);
         this.listenerUpdateCallback();
       });
-    } 
+    }
     return this._adminTokenListener;
   }
 
@@ -495,7 +489,6 @@ export class RoarFirekit {
     return result;
   }
 
-
   /**
    * Checks if the given email address is available for a new user registration.
    *
@@ -532,10 +525,10 @@ export class RoarFirekit {
         [EmailAuthProvider.EMAIL_LINK_SIGN_IN_METHOD]: 'link',
         'google.com': 'google',
       };
-      
+
       return signInMethods
         .filter((method): method is keyof typeof providerMap => method in providerMap)
-        .map(method => providerMap[method]);
+        .map((method) => providerMap[method]);
     });
   }
 
@@ -564,7 +557,7 @@ export class RoarFirekit {
         console.log(error.code);
         console.log(error.message);
         throw error;
-      })
+      });
   }
 
   /**
@@ -609,11 +602,10 @@ export class RoarFirekit {
     this._verifyAuthentication();
 
     const emailCredential = EmailAuthProvider.credential(email, password);
-    return linkWithCredential(this.admin!.auth!.currentUser!, emailCredential)
-      .catch((error: AuthError) => {
-        console.error('Error linking email and password', error);
-        throw error;
-      });
+    return linkWithCredential(this.admin!.auth!.currentUser!, emailCredential).catch((error: AuthError) => {
+      console.error('Error linking email and password', error);
+      throw error;
+    });
   }
 
   /**
@@ -748,7 +740,7 @@ export class RoarFirekit {
           };
           return this._setUidCustomClaims(claimsParams);
         }
-      })
+      });
   }
 
   /**
@@ -804,7 +796,7 @@ export class RoarFirekit {
           };
           return this._setUidCustomClaims(claimsParams);
         }
-      })
+      });
   }
 
   /**
@@ -932,7 +924,7 @@ export class RoarFirekit {
           return this._setUidCustomClaims(claimsParams);
         }
         return null;
-      })
+      });
   }
 
   /**
@@ -1001,7 +993,7 @@ export class RoarFirekit {
   public get restConfig() {
     return {
       admin: {
-        headers: { Authorization: `Bearer ${this._idTokens.admin}` }
+        headers: { Authorization: `Bearer ${this._idTokens.admin}` },
       },
     };
   }
@@ -1132,7 +1124,11 @@ export class RoarFirekit {
 
     try {
       const startTaskCloudFunction = httpsCallable(this.admin!.functions, 'startTask');
-      const result = await startTaskCloudFunction({ administrationId, taskId, targetUid: uid }) as HttpsCallableResult<StartTaskResult>;
+      const result = (await startTaskCloudFunction({
+        administrationId,
+        taskId,
+        targetUid: uid,
+      })) as HttpsCallableResult<StartTaskResult>;
 
       if (this.roarAppUserInfo === undefined) {
         this.roarAppUserInfo = {
@@ -1147,7 +1143,7 @@ export class RoarFirekit {
       const taskInfo = {
         db: this.admin!.db,
         taskId,
-        // This is fine being hardcoded to undefined since this field does not exist on the assignment document which is where we get the task info from. 
+        // This is fine being hardcoded to undefined since this field does not exist on the assignment document which is where we get the task info from.
         // When this is defined, it actually breaks starting the task (permissions error). Can probably be removed.
         taskName: undefined,
         taskVersion,
@@ -1186,7 +1182,6 @@ export class RoarFirekit {
     return result;
   }
 
-
   // These are all methods that will be important for admins, but not necessary for students
   /**
    * Create or update an administration
@@ -1207,6 +1202,7 @@ export class RoarFirekit {
   async upsertAdministration({
     name,
     publicName,
+    normalizedName,
     assessments,
     dateOpen,
     dateClose,
@@ -1219,6 +1215,7 @@ export class RoarFirekit {
   }: {
     name: string;
     publicName?: string;
+    normalizedName: string;
     assessments: Assessment[];
     dateOpen: Date;
     dateClose: Date;
@@ -1250,6 +1247,7 @@ export class RoarFirekit {
       const result = await upsertAdministrationFunction({
         name,
         publicName,
+        normalizedName,
         assessments,
         dateOpen: dateOpen.toISOString(), // Convert to ISO string
         dateClose: dateClose.toISOString(), // Convert to ISO string
@@ -1286,7 +1284,6 @@ export class RoarFirekit {
     const result = await cloudDeleteAdministration({ administrationId });
     return result;
   }
-
 
   /**
    * Send a password reset email to the specified user's email address.
@@ -1398,7 +1395,6 @@ export class RoarFirekit {
       console.log(`Successfully updated ${dataType} data.`);
     });
   }
-
 
   // LEVANTE
   async createUsers(userData: LevanteUserData) {
