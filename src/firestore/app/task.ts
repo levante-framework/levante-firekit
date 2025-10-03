@@ -180,20 +180,23 @@ export class RoarTaskVariant {
     let foundVariantWithCurrentParams = false;
 
     // If this query snapshot yielded results, then we can use it and
-    // update the timestamp
-    querySnapshot.forEach((docRef) => {
-      this.variantId = docRef.id;
-      this.variantRef = doc(this.variantsCollectionRef, this.variantId);
-      foundVariantWithCurrentParams = true;
-
-      updateDoc(
-        this.variantRef,
-        removeUndefined({
-          lastUpdated: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        }),
-      );
-    });
+    // update the timestamp. Ensure we await the update so errors propagate.
+    if (!querySnapshot.empty) {
+      const updates = querySnapshot.docs.map((docRef) => {
+        this.variantId = docRef.id;
+        this.variantRef = doc(this.variantsCollectionRef, this.variantId);
+        foundVariantWithCurrentParams = true;
+        
+        return updateDoc(
+          this.variantRef,
+          removeUndefined({
+            lastUpdated: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          }),
+        );
+      });
+      await Promise.all(updates);
+    }
 
     if (!foundVariantWithCurrentParams) {
       // Create new variant with both createdAt and updatedAt

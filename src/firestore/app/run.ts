@@ -500,9 +500,7 @@ export class RoarRun {
             });
           }
         })
-        .then(() => {
-          this.user.updateFirestoreTimestamp();
-        });
+        .then(() => this.user.updateFirestoreTimestamp());
     }
   }
 }
