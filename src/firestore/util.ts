@@ -21,7 +21,7 @@ import _remove from 'lodash/remove';
 import { markRaw } from 'vue';
 import { str as crc32 } from 'crc-32';
 import { OrgLists } from '../interfaces';
-import { connectFirestoreEmulator, Firestore, getFirestore } from 'firebase/firestore';
+import { connectFirestoreEmulator, Firestore, getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 import { type Emulators } from '../firekit';
 
 /** Remove null attributes from an object
@@ -118,7 +118,33 @@ export interface MarkRawConfig {
   functions?: boolean;
 }
 
+export interface OfflineConfig {
+  enablePersistence?: boolean;
+}
+
 type FirebaseProduct = Auth | Firestore | Functions | FirebaseStorage;
+
+/**
+ * Enable offline persistence for Firestore if requested
+ * @param db - Firestore instance
+ * @param offlineConfig - Offline configuration options
+ */
+const enableOfflinePersistence = async (db: Firestore, offlineConfig: OfflineConfig): Promise<void> => {
+  if (offlineConfig.enablePersistence) {
+    try {
+      await enableIndexedDbPersistence(db);
+      console.log('Firestore offline persistence enabled');
+    } catch (error: any) {
+      if (error.code === 'failed-precondition') {
+        console.warn('Persistence failed: Multiple tabs open, persistence can only be enabled in one tab at a time');
+      } else if (error.code === 'unimplemented') {
+        console.warn('Persistence is not available in this browser');
+      } else {
+        console.error('Failed to enable persistence:', error);
+      }
+    }
+  }
+};
 
 export const initializeFirebaseProject = async (
   config: FirebaseConfig,
@@ -126,6 +152,7 @@ export const initializeFirebaseProject = async (
   emulatorConfig?: Emulators | undefined,
   authPersistence = AuthPersistence.session,
   markRawConfig: MarkRawConfig = {},
+  offlineConfig: OfflineConfig = {},
 ) => {
   const optionallyMarkRaw = <T extends FirebaseProduct>(productKey: string, productInstance: T): T => {
     if (_get(markRawConfig, productKey)) {
@@ -145,6 +172,9 @@ export const initializeFirebaseProject = async (
 
     connectFirestoreEmulator(db, emulatorConfig.firestore.host, emulatorConfig.firestore.port);
     connectFunctionsEmulator(functions, emulatorConfig.functions.host, emulatorConfig.functions.port);
+
+    // Enable offline persistence if requested
+    await enableOfflinePersistence(db, offlineConfig);
 
     const originalInfo = console.info;
     // eslint-disable-next-line @typescript-eslint/no-empty-function
@@ -188,6 +218,9 @@ export const initializeFirebaseProject = async (
       storage: optionallyMarkRaw('storage', getStorage(app)),
       perf: performance,
     };
+
+    // Enable offline persistence if requested
+    await enableOfflinePersistence(kit.db, offlineConfig);
 
     // Auth state persistence is set with ``setPersistence`` and specifies how a
     // user session is persisted on a device. We choose in session persistence by
