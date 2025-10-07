@@ -19,7 +19,7 @@ import dot from 'dot-object';
 import { RoarTaskVariant } from './task';
 import { RoarAppUser } from './user';
 import { OrgLists } from '../../interfaces';
-import { removeUndefined } from '../util';
+import { removeUndefined, retryOperation } from '../util';
 import { FirebaseError } from '@firebase/util';
 
 /**
@@ -249,7 +249,10 @@ export class RoarRun {
       lastUpdated: serverTimestamp(),
     });
 
-    await batch.commit();
+    await retryOperation(
+      () => batch.commit(),
+      { operationName: 'startRun batch commit' }
+    );
 
     this.started = true;
   }
