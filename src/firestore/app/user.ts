@@ -213,15 +213,4 @@ export class RoarAppUser {
     return await updateDoc(this.userRef, removeUndefined(userData));
   }
 
-  /**
-   * Update the user's "lastUpdated" timestamp
-   * @method
-   * @async
-   */
-  async updateFirestoreTimestamp() {
-    this.checkUserExists();
-    return updateDoc(this.userRef, {
-      lastUpdated: serverTimestamp(),
-    });
-  }
 }
