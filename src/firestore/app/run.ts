@@ -9,6 +9,7 @@ import {
   serverTimestamp,
   setDoc,
   updateDoc,
+  writeBatch,
 } from 'firebase/firestore';
 import _intersection from 'lodash/intersection';
 import _mapValues from 'lodash/mapValues';
@@ -18,7 +19,7 @@ import dot from 'dot-object';
 import { RoarTaskVariant } from './task';
 import { RoarAppUser } from './user';
 import { OrgLists } from '../../interfaces';
-import { removeUndefined } from '../util';
+import { removeUndefined, retryOperation } from '../util';
 import { FirebaseError } from '@firebase/util';
 
 /**
@@ -240,14 +241,18 @@ export class RoarRun {
       ...(this.demoData && { demoData: true }),
     };
 
-    await setDoc(this.runRef, removeUndefined(runData))
-      .then(() => {
-        return updateDoc(this.user.userRef, {
-          tasks: arrayUnion(this.task.taskId),
-          variants: arrayUnion(this.task.variantId),
-        });
-      })
-      .then(() => this.user.updateFirestoreTimestamp());
+    const batch = writeBatch(this.user.db);
+    batch.set(this.runRef, removeUndefined(runData));
+    batch.update(this.user.userRef, {
+      tasks: arrayUnion(this.task.taskId),
+      variants: arrayUnion(this.task.variantId),
+      lastUpdated: serverTimestamp(),
+    });
+
+    await retryOperation(
+      () => batch.commit(),
+      { operationName: 'startRun batch commit' }
+    );
 
     this.started = true;
   }
@@ -313,9 +318,14 @@ export class RoarRun {
         timeFinished: serverTimestamp(),
       };
 
-      return await updateDoc(this.runRef, finishingData)
-        .then(() => this.user.updateFirestoreTimestamp())
-        .then(() => (this.completed = true));
+      try {
+        await updateDoc(this.runRef, finishingData);
+        this.completed = true;
+        return true;
+      } catch (error) {
+        console.log('Error finishing run:', error);
+        throw error;
+      }
     }
   }
 
@@ -344,165 +354,192 @@ export class RoarRun {
     if (!this.started) {
       throw new Error('Run has not been started yet. Use the startRun method first.');
     }
-    if (!this.aborted) {
-      // Check that the trial has all of the required reserved keys
-      if (
-        !requiredTrialFields.every((key) => {
-          return key in trialData && trialData[key] != undefined;
-        })
-      ) {
+
+    if (this.aborted) {
+      return;
+    }
+
+    // Check that the trial has all of the required reserved keys
+    if (
+      !requiredTrialFields.every((key) => {
+        return key in trialData && trialData[key] != undefined;
+      })
+    ) {
+      throw new Error(
+        'All ROAR trials saved to Firestore must have the following reserved keys: ' +
+          `${requiredTrialFields}.` +
+          'The current trial is missing the following required keys: ' +
+          `${requiredTrialFields.filter((key) => !(key in trialData))}.`,
+      );
+    }
+
+    const trialRef = doc(collection(this.runRef, 'trials'));
+    const trialDoc = {
+      ...convertTrialToFirestore(trialData),
+      taskId: this.task.taskId,
+      ...(this.testData && { testData: true }),
+      ...(this.demoData && { demoData: true }),
+      serverTimestamp: serverTimestamp(),
+      createdAt: serverTimestamp(),
+      // Trial documents are never updated, but for standardization, adding this field.
+      updatedAt: serverTimestamp(),
+    };
+
+    // Only update scores if the trial was a test or a practice response.
+    const shouldUpdateScores =
+      trialData.assessment_stage === 'test_response' || trialData.assessment_stage === 'practice_response';
+
+    if (!shouldUpdateScores) {
+      // Just write the trial, no score updates needed
+      try {
+        await setDoc(trialRef, trialDoc);
+      } catch (error) {
+        console.error('Error writing trial to Firestore:', {
+          error,
+          trialRefPath: trialRef.path,
+          trialData: trialDoc,
+        });
+        throw error;
+      }
+      return;
+    }
+
+    // Here we update the scores for this run. We create scores for each subtask in the task.
+    // E.g., ROAR-PA has three subtasks: FSM, LSM, and DEL. Each subtask has its own score.
+    // Conversely, ROAR-SWR has no subtasks. It's scores are stored in the 'composite' score field.
+    // If no subtask is specified, the scores for the 'composite' subtask will be updated.
+    const defaultSubtask = 'composite';
+    const subtask = (trialData.subtask || defaultSubtask) as string;
+    const stage = (trialData.assessment_stage as string).split('_')[0] as 'test' | 'practice';
+    const isCorrect = Boolean(trialData.correct);
+
+    // Extract theta values
+    const thetaEstimate = castToTheta(trialData.thetaEstimate as ThetaValue);
+    const thetaSE = castToTheta(trialData.thetaSE as ThetaValue);
+
+    // Helper function to update composite scores
+    const updateCompositeScores = (isInitializing: boolean) => {
+      if (subtask === defaultSubtask) return {};
+
+      if (isInitializing) {
+        _set(this.scores.raw, [defaultSubtask, stage], {
+          numAttempted: 1,
+          numCorrect: isCorrect ? 1 : 0,
+          numIncorrect: isCorrect ? 0 : 1,
+          thetaEstimate: null,
+          thetaSE: null,
+        });
+
+        return {
+          [`scores.raw.${defaultSubtask}.${stage}.numAttempted`]: 1,
+          [`scores.raw.${defaultSubtask}.${stage}.numCorrect`]: isCorrect ? 1 : 0,
+          [`scores.raw.${defaultSubtask}.${stage}.numIncorrect`]: isCorrect ? 0 : 1,
+          [`scores.raw.${defaultSubtask}.${stage}.thetaEstimate`]: null,
+          [`scores.raw.${defaultSubtask}.${stage}.thetaSE`]: null,
+        };
+      } else {
+        this.scores.raw[defaultSubtask][stage] = {
+          numAttempted: (this.scores.raw[defaultSubtask][stage]?.numAttempted || 0) + 1,
+          numCorrect: (this.scores.raw[defaultSubtask][stage]?.numCorrect || 0) + +isCorrect,
+          numIncorrect: (this.scores.raw[defaultSubtask][stage]?.numIncorrect || 0) + +!isCorrect,
+          thetaEstimate: null,
+          thetaSE: null,
+        };
+
+        return {
+          [`scores.raw.${defaultSubtask}.${stage}.numAttempted`]: increment(1),
+          [`scores.raw.${defaultSubtask}.${stage}.numCorrect`]: isCorrect ? increment(1) : undefined,
+          [`scores.raw.${defaultSubtask}.${stage}.numIncorrect`]: isCorrect ? undefined : increment(1),
+        };
+      }
+    };
+
+    let scoreUpdate: ScoreUpdate = {};
+
+    if (subtask in this.scores.raw) {
+      // Then this subtask has already been added to this run.
+      // Simply update the block's scores.
+      this.scores.raw[subtask][stage] = {
+        thetaEstimate,
+        thetaSE,
+        numAttempted: (this.scores.raw[subtask][stage]?.numAttempted || 0) + 1,
+        numCorrect: (this.scores.raw[subtask][stage]?.numCorrect || 0) + +isCorrect,
+        numIncorrect: (this.scores.raw[subtask][stage]?.numIncorrect || 0) + +!isCorrect,
+      };
+
+      // Populate the score update for Firestore.
+      scoreUpdate = {
+        [`scores.raw.${subtask}.${stage}.thetaEstimate`]: thetaEstimate,
+        [`scores.raw.${subtask}.${stage}.thetaSE`]: thetaSE,
+        [`scores.raw.${subtask}.${stage}.numAttempted`]: increment(1),
+        [`scores.raw.${subtask}.${stage}.numCorrect`]: isCorrect ? increment(1) : undefined,
+        [`scores.raw.${subtask}.${stage}.numIncorrect`]: isCorrect ? undefined : increment(1),
+        ...updateCompositeScores(false),
+      };
+    } else {
+      // This is the first time this subtask has been added to this run.
+      // Initialize the subtask scores.
+      _set(this.scores.raw, [subtask, stage], {
+        thetaEstimate,
+        thetaSE,
+        numAttempted: 1,
+        numCorrect: isCorrect ? 1 : 0,
+        numIncorrect: isCorrect ? 0 : 1,
+      });
+
+      // Populate the score update for Firestore.
+      scoreUpdate = {
+        [`scores.raw.${subtask}.${stage}.thetaEstimate`]: thetaEstimate,
+        [`scores.raw.${subtask}.${stage}.thetaSE`]: thetaSE,
+        [`scores.raw.${subtask}.${stage}.numAttempted`]: 1,
+        [`scores.raw.${subtask}.${stage}.numCorrect`]: isCorrect ? 1 : 0,
+        [`scores.raw.${subtask}.${stage}.numIncorrect`]: isCorrect ? 0 : 1,
+        ...updateCompositeScores(true),
+      };
+    }
+
+    if (computedScoreCallback) {
+      // Use the user-provided callback to compute the computed scores.
+      this.scores.computed = await computedScoreCallback(this.scores.raw);
+    } else {
+      // If no computedScoreCallback is provided, we default to
+      // numCorrect - numIncorrect for each subtask.
+      this.scores.computed = _mapValues(this.scores.raw, (subtaskScores) => {
+        const numCorrect = subtaskScores.test?.numCorrect || 0;
+        const numIncorrect = subtaskScores.test?.numIncorrect || 0;
+        return numCorrect - numIncorrect;
+      });
+    }
+
+    // Use dot-object to convert the computed scores into dotted-key/value pairs.
+    const fullUpdatePath = {
+      scores: {
+        computed: this.scores.computed,
+      },
+    };
+    scoreUpdate = {
+      ...scoreUpdate,
+      ...dot.dot(fullUpdatePath),
+    };
+
+    const batch = writeBatch(this.user.db);
+    batch.set(trialRef, trialDoc);
+    batch.update(this.runRef, removeUndefined(scoreUpdate));
+    batch.update(this.user.userRef, { lastUpdated: serverTimestamp() });
+
+    try {
+      await batch.commit();
+    } catch (error) {
+      // Catch the "Unsupported field value: undefined" error and
+      // provide a more helpful error message to the ROAR app developer.
+      if (error instanceof FirebaseError && error.message.toLowerCase().includes('unsupported field value: undefined')) {
         throw new Error(
-          'All ROAR trials saved to Firestore must have the following reserved keys: ' +
-            `${requiredTrialFields}.` +
-            'The current trial is missing the following required keys: ' +
-            `${requiredTrialFields.filter((key) => !(key in trialData))}.`,
+          'The computed or normed scores that you provided contained an undefined value. ' +
+            'Firestore does not support storing undefined values. ' +
+            'Please remove this value or convert it to ``null``.',
         );
       }
-
-      const trialRef = doc(collection(this.runRef, 'trials'));
-
-      return setDoc(trialRef, {
-        ...convertTrialToFirestore(trialData),
-        taskId: this.task.taskId,
-        ...(this.testData && { testData: true }),
-        ...(this.demoData && { demoData: true }),
-        serverTimestamp: serverTimestamp(),
-        createdAt: serverTimestamp(),
-        // Trial documents are never updated, but for standardization, adding this field. 
-        updatedAt: serverTimestamp(),
-      })
-        .then(async () => {
-          // Only update scores if the trial was a test or a practice response.
-          if (trialData.assessment_stage === 'test_response' || trialData.assessment_stage === 'practice_response') {
-            // Here we update the scores for this run. We create scores for each subtask in the task.
-            // E.g., ROAR-PA has three subtasks: FSM, LSM, and DEL. Each subtask has its own score.
-            // Conversely, ROAR-SWR has no subtasks. It's scores are stored in the 'total' score field.
-            // If no subtask is specified, the scores for the 'total' subtask will be updated.
-            const defaultSubtask = 'composite';
-            const subtask = (trialData.subtask || defaultSubtask) as string;
-
-            const stage = trialData.assessment_stage.split('_')[0] as 'test' | 'practice';
-
-            let scoreUpdate: ScoreUpdate = {};
-            if (subtask in this.scores.raw) {
-              // Then this subtask has already been added to this run.
-              // Simply update the block's scores.
-              this.scores.raw[subtask][stage] = {
-                thetaEstimate: castToTheta(trialData.thetaEstimate as ThetaValue),
-                thetaSE: castToTheta(trialData.thetaSE as ThetaValue),
-                numAttempted: (this.scores.raw[subtask][stage]?.numAttempted || 0) + 1,
-                // For the next two, use the unary + operator to convert the boolean value to 0 or 1.
-                numCorrect: (this.scores.raw[subtask][stage]?.numCorrect || 0) + +Boolean(trialData.correct),
-                numIncorrect: (this.scores.raw[subtask][stage]?.numIncorrect || 0) + +!trialData.correct,
-              };
-
-              // And populate the score update for Firestore.
-              scoreUpdate = {
-                [`scores.raw.${subtask}.${stage}.thetaEstimate`]: castToTheta(trialData.thetaEstimate as ThetaValue),
-                [`scores.raw.${subtask}.${stage}.thetaSE`]: castToTheta(trialData.thetaSE as ThetaValue),
-                [`scores.raw.${subtask}.${stage}.numAttempted`]: increment(1),
-                [`scores.raw.${subtask}.${stage}.numCorrect`]: trialData.correct ? increment(1) : undefined,
-                [`scores.raw.${subtask}.${stage}.numIncorrect`]: trialData.correct ? undefined : increment(1),
-              };
-
-              if (subtask !== defaultSubtask) {
-                this.scores.raw[defaultSubtask][stage] = {
-                  numAttempted: (this.scores.raw[defaultSubtask][stage]?.numAttempted || 0) + 1,
-                  // For the next two, use the unary + operator to convert the boolean value to 0 or 1.
-                  numCorrect: (this.scores.raw[defaultSubtask][stage]?.numCorrect || 0) + +Boolean(trialData.correct),
-                  numIncorrect: (this.scores.raw[defaultSubtask][stage]?.numIncorrect || 0) + +!trialData.correct,
-                  thetaEstimate: null,
-                  thetaSE: null,
-                };
-
-                scoreUpdate = {
-                  ...scoreUpdate,
-                  [`scores.raw.${defaultSubtask}.${stage}.numAttempted`]: increment(1),
-                  [`scores.raw.${defaultSubtask}.${stage}.numCorrect`]: trialData.correct ? increment(1) : undefined,
-                  [`scores.raw.${defaultSubtask}.${stage}.numIncorrect`]: trialData.correct ? undefined : increment(1),
-                };
-              }
-            } else {
-              // This is the first time this subtask has been added to this run.
-              // Initialize the subtask scores.
-              _set(this.scores.raw, [subtask, stage], {
-                thetaEstimate: castToTheta(trialData.thetaEstimate as ThetaValue),
-                thetaSE: castToTheta(trialData.thetaSE as ThetaValue),
-                numAttempted: 1,
-                numCorrect: trialData.correct ? 1 : 0,
-                numIncorrect: trialData.correct ? 0 : 1,
-              });
-
-              // And populate the score update for Firestore.
-              scoreUpdate = {
-                [`scores.raw.${subtask}.${stage}.thetaEstimate`]: castToTheta(trialData.thetaEstimate as ThetaValue),
-                [`scores.raw.${subtask}.${stage}.thetaSE`]: castToTheta(trialData.thetaSE as ThetaValue),
-                [`scores.raw.${subtask}.${stage}.numAttempted`]: 1,
-                [`scores.raw.${subtask}.${stage}.numCorrect`]: trialData.correct ? 1 : 0,
-                [`scores.raw.${subtask}.${stage}.numIncorrect`]: trialData.correct ? 0 : 1,
-              };
-
-              if (subtask !== defaultSubtask) {
-                _set(this.scores.raw, [defaultSubtask, stage], {
-                  numAttempted: 1,
-                  numCorrect: trialData.correct ? 1 : 0,
-                  numIncorrect: trialData.correct ? 0 : 1,
-                  thetaEstimate: null,
-                  thetaSE: null,
-                });
-
-                scoreUpdate = {
-                  ...scoreUpdate,
-                  [`scores.raw.${defaultSubtask}.${stage}.numAttempted`]: increment(1),
-                  [`scores.raw.${defaultSubtask}.${stage}.numCorrect`]: trialData.correct ? increment(1) : undefined,
-                  [`scores.raw.${defaultSubtask}.${stage}.numIncorrect`]: trialData.correct ? undefined : increment(1),
-                };
-              }
-            }
-
-            if (computedScoreCallback) {
-              // Use the user-provided callback to compute the computed scores.
-              this.scores.computed = await computedScoreCallback(this.scores.raw);
-            } else {
-              // If no computedScoreCallback is provided, we default to
-              // numCorrect - numIncorrect for each subtask.
-              this.scores.computed = _mapValues(this.scores.raw, (subtaskScores) => {
-                const numCorrect = subtaskScores.test?.numCorrect || 0;
-                const numIncorrect = subtaskScores.test?.numIncorrect || 0;
-                return numCorrect - numIncorrect;
-              });
-            }
-
-            // And use dot-object to convert the computed scores into dotted-key/value pairs.
-            // First nest the computed scores into `scores.computed` so that they get updated
-            // in the correct location.
-            const fullUpdatePath = {
-              scores: {
-                computed: this.scores.computed,
-              },
-            };
-            scoreUpdate = {
-              ...scoreUpdate,
-              ...dot.dot(fullUpdatePath),
-            };
-
-            return updateDoc(this.runRef, removeUndefined(scoreUpdate)).catch((error: FirebaseError) => {
-              // Catch the "Unsupported field value: undefined" error and
-              // provide a more helpful error message to the ROAR app developer.
-              if (error.message.toLowerCase().includes('unsupported field value: undefined')) {
-                throw new Error(
-                  'The computed or normed scores that you provided contained an undefined value. ' +
-                    'Firestore does not support storing undefined values. ' +
-                    'Please remove this value or convert it to ``null``.',
-                );
-              }
-              throw error;
-            });
-          }
-        })
-        .then(() => {
-          this.user.updateFirestoreTimestamp();
-        });
+      throw error;
     }
   }
 }

@@ -297,6 +297,64 @@ export const mergeGameParams = (oldParams: { [key: string]: unknown }, newParams
   };
 };
 
+/**
+ * Retry an async operation with exponential backoff
+ * 
+ * @param operation - The async function to retry
+ * @param options - Retry configuration options
+ * @returns The result of the operation
+ * @throws The last error if all retries are exhausted
+ */
+export async function retryOperation<T>(
+  operation: () => Promise<T>,
+  options: {
+    maxRetries?: number;
+    initialDelayMs?: number;
+    maxDelayMs?: number;
+    backoffMultiplier?: number;
+    operationName?: string;
+  } = {},
+): Promise<T> {
+  const {
+    maxRetries = 3,
+    initialDelayMs = 1000,
+    maxDelayMs = 10000,
+    backoffMultiplier = 2,
+    operationName = 'operation',
+  } = options;
+
+  let lastError: Error | unknown;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      
+      if (attempt === maxRetries) {
+        // All retries exhausted
+        console.error(`${operationName} failed after ${maxRetries + 1} attempts:`, error);
+        throw error;
+      }
+      
+      // Calculate delay with exponential backoff
+      const delay = Math.min(initialDelayMs * Math.pow(backoffMultiplier, attempt), maxDelayMs);
+      
+      console.warn(
+        `${operationName} failed (attempt ${attempt + 1}/${maxRetries + 1}). ` +
+        `Retrying in ${delay}ms...`,
+        error
+      );
+      
+      // Wait before retrying
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  
+  // This should never be reached, but TypeScript needs it
+  throw lastError;
+}
+
 export const crc32String = (inputString: string) => {
   const modulo = (a: number, b: number) => {
     return a - Math.floor(a / b) * b;
