@@ -318,8 +318,14 @@ export class RoarRun {
         timeFinished: serverTimestamp(),
       };
 
-      return await updateDoc(this.runRef, finishingData)
-        .then(() => (this.completed = true));
+      try {
+        await updateDoc(this.runRef, finishingData);
+        this.completed = true;
+        return true;
+      } catch (error) {
+        console.log('Error finishing run:', error);
+        throw error;
+      }
     }
   }
 
@@ -385,7 +391,16 @@ export class RoarRun {
 
     if (!shouldUpdateScores) {
       // Just write the trial, no score updates needed
-      await setDoc(trialRef, trialDoc);
+      try {
+        await setDoc(trialRef, trialDoc);
+      } catch (error) {
+        console.error('Error writing trial to Firestore:', {
+          error,
+          trialRefPath: trialRef.path,
+          trialData: trialDoc,
+        });
+        throw error;
+      }
       return;
     }
 
