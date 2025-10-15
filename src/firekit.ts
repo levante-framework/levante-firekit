@@ -40,7 +40,7 @@ import {
 } from 'firebase/firestore';
 import { httpsCallable, HttpsCallableResult } from 'firebase/functions';
 
-import { AuthPersistence, MarkRawConfig, emptyOrgList, initializeFirebaseProject } from './firestore/util';
+import { AuthPersistence, MarkRawConfig, enableOfflineConfig, emptyOrgList, initializeFirebaseProject } from './firestore/util';
 import {
   Assessment,
   FirebaseProject,
@@ -178,6 +178,7 @@ export class RoarFirekit {
   private _idTokens: { admin?: string; app?: string };
   private _initialized: boolean;
   private _markRawConfig: MarkRawConfig;
+  private _enableOfflineConfig: enableOfflineConfig = false;
   private _roarUid?: string;
   private _superAdmin?: boolean;
   private _verboseLogging?: boolean;
@@ -194,6 +195,7 @@ export class RoarFirekit {
     markRawConfig = {},
     listenerUpdateCallback,
     emulatorConfig,
+    enableOfflineConfig,
   }: {
     roarConfig: RoarConfig;
     emulatorConfig?: Emulators;
@@ -202,12 +204,14 @@ export class RoarFirekit {
     markRawConfig?: MarkRawConfig;
     verboseLogging: boolean;
     listenerUpdateCallback?: (...args: unknown[]) => void;
+    enableOfflineConfig?: enableOfflineConfig;
   }) {
     this.roarConfig = roarConfig;
     this.emulatorConfig = emulatorConfig;
     this._verboseLogging = verboseLogging;
     this._authPersistence = authPersistence;
     this._markRawConfig = markRawConfig;
+    this._enableOfflineConfig = enableOfflineConfig ?? false;
     this._initialized = false;
     this._idTokens = {};
     // eslint-disable-next-line @typescript-eslint/no-empty-function
@@ -240,6 +244,7 @@ export class RoarFirekit {
       this.emulatorConfig,
       this._authPersistence,
       this._markRawConfig,
+      this._enableOfflineConfig,
     );
 
     this._initialized = true;

@@ -1,4 +1,4 @@
-import { getApp, initializeApp } from 'firebase/app';
+import { FirebaseApp, getApp, initializeApp } from 'firebase/app';
 import {
   Auth,
   browserLocalPersistence,
@@ -21,7 +21,7 @@ import _remove from 'lodash/remove';
 import { markRaw } from 'vue';
 import { str as crc32 } from 'crc-32';
 import { OrgLists } from '../interfaces';
-import { connectFirestoreEmulator, Firestore, getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import { connectFirestoreEmulator, Firestore, getFirestore, initializeFirestore, persistentLocalCache } from 'firebase/firestore';
 import { type Emulators } from '../firekit';
 
 /** Remove null attributes from an object
@@ -116,33 +116,38 @@ export interface MarkRawConfig {
   auth?: boolean;
   db?: boolean;
   functions?: boolean;
-}
+} 
 
-export interface OfflineConfig {
-  enablePersistence?: boolean;
-}
+export type enableOfflineConfig = boolean
 
 type FirebaseProduct = Auth | Firestore | Functions | FirebaseStorage;
 
 /**
  * Enable offline persistence for Firestore if requested
- * @param db - Firestore instance
- * @param offlineConfig - Offline configuration options
+ * @param app - Firebase app instance
+ * @param enableOfflineConfig - Offline configuration options
  */
-const enableOfflinePersistence = async (db: Firestore, offlineConfig: OfflineConfig): Promise<void> => {
-  if (offlineConfig.enablePersistence) {
-    try {
-      await enableIndexedDbPersistence(db);
-      console.log('Firestore offline persistence enabled');
-    } catch (error: any) {
-      if (error.code === 'failed-precondition') {
-        console.warn('Persistence failed: Multiple tabs open, persistence can only be enabled in one tab at a time');
-      } else if (error.code === 'unimplemented') {
-        console.warn('Persistence is not available in this browser');
+const enableOfflinePersistence = (app: FirebaseApp): Firestore | undefined => {
+  try {
+    // Defaults to single-tab persistence if no tab manager is specified.
+    const firestore = initializeFirestore(app, { localCache: persistentLocalCache(/* settings */ {}) });
+    console.log('Firestore offline persistence enabled');
+    return firestore;
+  } catch (error: any) {
+    if (error.code === 'failed-precondition') {
+      if (typeof error.message === 'string' && error.message.includes('initializeFirestore() has already been called')) {
+        console.warn(
+          `Persistence skipped: Firestore already initialized for app ${app.name}. Ensure persistence is configured before calling getFirestore().`,
+        );
       } else {
-        console.error('Failed to enable persistence:', error);
+        console.warn('Persistence failed: Multiple tabs open, persistence can only be enabled in one tab at a time');
       }
+    } else if (error.code === 'unimplemented') {
+      console.warn('Persistence is not available in this browser');
+    } else {
+      console.error('Failed to enable persistence:', error);
     }
+    return undefined;
   }
 };
 
@@ -152,7 +157,7 @@ export const initializeFirebaseProject = async (
   emulatorConfig?: Emulators | undefined,
   authPersistence = AuthPersistence.session,
   markRawConfig: MarkRawConfig = {},
-  offlineConfig: OfflineConfig = {},
+  enableOfflineConfig: enableOfflineConfig = false,
 ) => {
   const optionallyMarkRaw = <T extends FirebaseProduct>(productKey: string, productInstance: T): T => {
     if (_get(markRawConfig, productKey)) {
@@ -165,17 +170,14 @@ export const initializeFirebaseProject = async (
   if (emulatorConfig) {
     console.log('Initializing Firebase emulator', emulatorConfig);
     const app = initializeApp({ projectId: emulatorConfig ? 'demo-emulator' : config.projectId, apiKey: config.apiKey }, name);
+    const offlineDb = enableOfflineConfig ? enableOfflinePersistence(app) : undefined;
     const auth = optionallyMarkRaw('auth', getAuth(app));
-    const db = optionallyMarkRaw('db', getFirestore(app));
+    const db = optionallyMarkRaw('db', offlineDb ?? getFirestore(app));
     const functions = optionallyMarkRaw('functions', getFunctions(app));
     const storage = optionallyMarkRaw('storage', getStorage(app));
 
     connectFirestoreEmulator(db, emulatorConfig.firestore.host, emulatorConfig.firestore.port);
     connectFunctionsEmulator(functions, emulatorConfig.functions.host, emulatorConfig.functions.port);
-
-    // Enable offline persistence if requested
-    await enableOfflinePersistence(db, offlineConfig);
-
     const originalInfo = console.info;
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     console.info = () => {};
@@ -209,18 +211,17 @@ export const initializeFirebaseProject = async (
       }
     }
 
+    const offlineDb = enableOfflineConfig ? enableOfflinePersistence(app) : undefined;
+
     const kit = {
       firebaseApp: app,
       // appCheckToken: appCheckToken,
       auth: optionallyMarkRaw('auth', getAuth(app)),
-      db: optionallyMarkRaw('db', getFirestore(app)),
+      db: optionallyMarkRaw('db', offlineDb ?? getFirestore(app)),
       functions: optionallyMarkRaw('functions', getFunctions(app)),
       storage: optionallyMarkRaw('storage', getStorage(app)),
       perf: performance,
     };
-
-    // Enable offline persistence if requested
-    await enableOfflinePersistence(kit.db, offlineConfig);
 
     // Auth state persistence is set with ``setPersistence`` and specifies how a
     // user session is persisted on a device. We choose in session persistence by
