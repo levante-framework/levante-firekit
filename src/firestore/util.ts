@@ -64,63 +64,6 @@ export const replaceValues = (
   );
 };
 
-const isSerializableObject = (value: unknown): value is { [key: string]: unknown } => {
-  if (value === null || value === undefined) {
-    return false;
-  }
-  if (Array.isArray(value)) {
-    return false;
-  }
-  if (value instanceof Date || value instanceof URL || value instanceof Map || value instanceof Set) {
-    return false;
-  }
-  if (typeof value !== 'object') {
-    return false;
-  }
-
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null || _isPlainObject(value);
-};
-
-const sanitizeCollection = (entries: Iterable<[string, unknown]>) => {
-  const sanitized: Record<string, unknown> = {};
-  for (const [key, value] of entries) {
-    const cleaned = sanitizeForFirestore(value);
-    if (cleaned !== undefined) {
-      sanitized[key] = cleaned;
-    }
-  }
-  return sanitized;
-};
-
-export function sanitizeForFirestore<T>(input: T): T {
-  if (input === null) {
-    return input;
-  }
-
-  if (Array.isArray(input)) {
-    return input.map((item) => sanitizeForFirestore(item)) as T;
-  }
-
-  if (input instanceof URL) {
-    return input.toString() as T;
-  }
-
-  if (input instanceof Map) {
-    return sanitizeCollection(input.entries()) as T;
-  }
-
-  if (input instanceof Set) {
-    return Array.from(input, (item) => sanitizeForFirestore(item)) as T;
-  }
-
-  if (isSerializableObject(input)) {
-    return sanitizeCollection(Object.entries(input)) as T;
-  }
-
-  return input;
-}
-
 export interface CommonFirebaseConfig {
   projectId: string;
   apiKey: string;
@@ -184,28 +127,20 @@ type FirebaseProduct = Auth | Firestore | Functions | FirebaseStorage;
  * @param app - Firebase app instance
  * @param enableOfflineConfig - Offline configuration options
  */
-const enableOfflinePersistence = (app: FirebaseApp): Firestore | undefined => {
-  try {
-    // Defaults to single-tab persistence if no tab manager is specified.
-    const firestore = initializeFirestore(app, { localCache: persistentLocalCache(/* settings */ {}) });
-    console.log('Firestore offline persistence enabled');
-    return firestore;
-  } catch (error: any) {
-    if (error.code === 'failed-precondition') {
-      if (typeof error.message === 'string' && error.message.includes('initializeFirestore() has already been called')) {
-        console.warn(
-          `Persistence skipped: Firestore already initialized for app ${app.name}. Ensure persistence is configured before calling getFirestore().`,
-        );
-      } else {
+const enableOfflinePersistence = (app: FirebaseApp): void => {
+    try {
+      // Defaults to single-tab persistence if no tab manager is specified.
+      initializeFirestore(app, { localCache: persistentLocalCache(/*settings*/{}) });
+      console.log('Firestore offline persistence enabled');
+    } catch (error: any) {
+      if (error.code === 'failed-precondition') {
         console.warn('Persistence failed: Multiple tabs open, persistence can only be enabled in one tab at a time');
+      } else if (error.code === 'unimplemented') {
+        console.warn('Persistence is not available in this browser');
+      } else {
+        console.error('Failed to enable persistence:', error);
       }
-    } else if (error.code === 'unimplemented') {
-      console.warn('Persistence is not available in this browser');
-    } else {
-      console.error('Failed to enable persistence:', error);
     }
-    return undefined;
-  }
 };
 
 export const initializeFirebaseProject = async (
@@ -227,14 +162,19 @@ export const initializeFirebaseProject = async (
   if (emulatorConfig) {
     console.log('Initializing Firebase emulator', emulatorConfig);
     const app = initializeApp({ projectId: emulatorConfig ? 'demo-emulator' : config.projectId, apiKey: config.apiKey }, name);
-    const offlineDb = enableOfflineConfig ? enableOfflinePersistence(app) : undefined;
     const auth = optionallyMarkRaw('auth', getAuth(app));
-    const db = optionallyMarkRaw('db', offlineDb ?? getFirestore(app));
+    const db = optionallyMarkRaw('db', getFirestore(app));
     const functions = optionallyMarkRaw('functions', getFunctions(app));
     const storage = optionallyMarkRaw('storage', getStorage(app));
 
     connectFirestoreEmulator(db, emulatorConfig.firestore.host, emulatorConfig.firestore.port);
     connectFunctionsEmulator(functions, emulatorConfig.functions.host, emulatorConfig.functions.port);
+
+    // Enable offline persistence if requested
+    if (enableOfflineConfig) {
+      enableOfflinePersistence(app);
+    }
+
     const originalInfo = console.info;
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     console.info = () => {};
@@ -268,17 +208,20 @@ export const initializeFirebaseProject = async (
       }
     }
 
-    const offlineDb = enableOfflineConfig ? enableOfflinePersistence(app) : undefined;
-
     const kit = {
       firebaseApp: app,
       // appCheckToken: appCheckToken,
       auth: optionallyMarkRaw('auth', getAuth(app)),
-      db: optionallyMarkRaw('db', offlineDb ?? getFirestore(app)),
+      db: optionallyMarkRaw('db', getFirestore(app)),
       functions: optionallyMarkRaw('functions', getFunctions(app)),
       storage: optionallyMarkRaw('storage', getStorage(app)),
       perf: performance,
     };
+
+    // Enable offline persistence if requested
+    if (enableOfflineConfig) {
+      enableOfflinePersistence(app);
+    }
 
     // Auth state persistence is set with ``setPersistence`` and specifies how a
     // user session is persisted on a device. We choose in session persistence by

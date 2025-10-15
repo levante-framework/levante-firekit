@@ -14,7 +14,7 @@ import {
   where,
   getDoc,
 } from 'firebase/firestore';
-import { mergeGameParams, removeUndefined, replaceValues, sanitizeForFirestore } from '../util';
+import { mergeGameParams, removeUndefined, replaceValues } from '../util';
 
 export interface TaskVariantBase {
   taskId: string;
@@ -119,11 +119,11 @@ export class RoarTaskVariant {
     this.taskImage = taskImage;
     this.taskURL = taskURL;
     this.taskVersion = taskVersion;
-    this.gameConfig = sanitizeForFirestore(gameConfig);
+    this.gameConfig = gameConfig;
     this.registered = registered;
     this.external = external;
     this.variantName = variantName;
-    this.variantParams = sanitizeForFirestore(variantParams);
+    this.variantParams = variantParams;
     this.taskRef = doc(this.db, 'tasks', this.taskId);
     this.variantsCollectionRef = collection(this.taskRef, 'variants');
     this.variantId = undefined;
