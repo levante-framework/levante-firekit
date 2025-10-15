@@ -64,6 +64,63 @@ export const replaceValues = (
   );
 };
 
+const isSerializableObject = (value: unknown): value is { [key: string]: unknown } => {
+  if (value === null || value === undefined) {
+    return false;
+  }
+  if (Array.isArray(value)) {
+    return false;
+  }
+  if (value instanceof Date || value instanceof URL || value instanceof Map || value instanceof Set) {
+    return false;
+  }
+  if (typeof value !== 'object') {
+    return false;
+  }
+
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null || _isPlainObject(value);
+};
+
+const sanitizeCollection = (entries: Iterable<[string, unknown]>) => {
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, value] of entries) {
+    const cleaned = sanitizeForFirestore(value);
+    if (cleaned !== undefined) {
+      sanitized[key] = cleaned;
+    }
+  }
+  return sanitized;
+};
+
+export function sanitizeForFirestore<T>(input: T): T {
+  if (input === null) {
+    return input;
+  }
+
+  if (Array.isArray(input)) {
+    return input.map((item) => sanitizeForFirestore(item)) as T;
+  }
+
+  if (input instanceof URL) {
+    return input.toString() as T;
+  }
+
+  if (input instanceof Map) {
+    return sanitizeCollection(input.entries()) as T;
+  }
+
+  if (input instanceof Set) {
+    return Array.from(input, (item) => sanitizeForFirestore(item)) as T;
+  }
+
+  if (isSerializableObject(input)) {
+    return sanitizeCollection(Object.entries(input)) as T;
+  }
+
+  return input;
+}
+
 export interface CommonFirebaseConfig {
   projectId: string;
   apiKey: string;
