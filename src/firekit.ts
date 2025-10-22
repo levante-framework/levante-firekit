@@ -1326,6 +1326,7 @@ export class RoarFirekit {
   }
 
   async updateAdministrator(
+    adminUid: string,
     email: string,
     name: Name,
     targetOrgs: OrgLists,
@@ -1337,6 +1338,7 @@ export class RoarFirekit {
 
     const cloudUpdateAdministrator = httpsCallable(this.admin!.functions, 'updateAdministrator');
     const response = await cloudUpdateAdministrator({
+      adminUid,
       email,
       name,
       orgs: targetOrgs,
