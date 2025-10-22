@@ -1325,6 +1325,42 @@ export class RoarFirekit {
     }
   }
 
+  async updateAdministrator(
+    email: string,
+    name: Name,
+    targetOrgs: OrgLists,
+    targetAdminOrgs: OrgLists,
+    isTestData = false,
+  ) {
+    this._verifyAuthentication();
+    this._verifyAdmin();
+
+    const cloudUpdateAdministrator = httpsCallable(this.admin!.functions, 'updateAdministrator');
+    const response = await cloudUpdateAdministrator({
+      email,
+      name,
+      orgs: targetOrgs,
+      adminOrgs: targetAdminOrgs,
+      isTestData,
+    });
+
+    if (_get(response.data as string, 'status') !== 'ok') {
+      throw new Error('Failed to update administrator user account.');
+    }
+  }
+
+  async removeAdministratorFromSite(adminUid: string, siteId: string) {
+    this._verifyAuthentication();
+    this._verifyAdmin();
+
+    const cloudRemoveAdministratorFromSite = httpsCallable(this.admin!.functions, 'removeAdministratorFromSite');
+    const response = await cloudRemoveAdministratorFromSite({ adminUid, siteId });
+
+    if (_get(response.data as string, 'status') !== 'ok') {
+      throw new Error('Failed to remove administrator from site.');
+    }
+  }
+
   /**
    * Upserts an organization in the database.
    *
