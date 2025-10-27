@@ -50,6 +50,7 @@ import {
   StartTaskResult,
   UserDataInAdminDb,
   Legal,
+  Role,
 } from './interfaces';
 import { UserInput } from './firestore/app/user';
 import { RoarAppkit } from './firestore/app/appkit';
@@ -1329,6 +1330,7 @@ export class RoarFirekit {
     adminUid: string,
     email: string,
     name: Name,
+    roles: Role[],
     targetOrgs: OrgLists,
     targetAdminOrgs: OrgLists,
     isTestData = false,
@@ -1341,6 +1343,7 @@ export class RoarFirekit {
       adminUid,
       email,
       name,
+      roles,
       orgs: targetOrgs,
       adminOrgs: targetAdminOrgs,
       isTestData,
