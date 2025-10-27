@@ -75,6 +75,12 @@ export interface Name {
   last: string;
 }
 
+export interface Role {
+  role: string;
+  siteId: string;
+  siteName: string;
+}
+
 export interface UserDataInAdminDb extends DocumentData {
   id?: string;
   userType: UserType;
