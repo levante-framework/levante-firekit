@@ -1213,6 +1213,7 @@ export class RoarFirekit {
     administrationId,
     isTestData = false,
     legal,
+    creatorName,
   }: {
     name: string;
     publicName?: string;
@@ -1226,6 +1227,7 @@ export class RoarFirekit {
     administrationId?: string;
     isTestData: boolean;
     legal: Legal;
+    creatorName: string;
   }) {
     this._verifyAuthentication();
     this._verifyAdmin();
@@ -1258,6 +1260,7 @@ export class RoarFirekit {
         administrationId,
         isTestData,
         legal,
+        creatorName,
       });
       // You might want to log or use the result if the cloud function returns data
       this.verboseLog('upsertAdministration cloud function called successfully:', result);
