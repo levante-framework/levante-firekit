@@ -1275,6 +1275,14 @@ export class RoarFirekit {
     }
   }
 
+  async createNewPermissionsAdmin(data: any) {
+    this._verifyAuthentication();
+    this._verifyAdmin();
+
+    const cloudCreateAdminUser = httpsCallable(this.admin!.functions, 'createAdministrator');
+    return await cloudCreateAdminUser(data);
+  }
+
   async updateAdministrator(
     adminUid: string,
     email: string,
