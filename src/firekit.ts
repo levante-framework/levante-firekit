@@ -1283,32 +1283,12 @@ export class RoarFirekit {
     return await cloudCreateAdminUser(data);
   }
 
-  async updateAdministrator(
-    adminUid: string,
-    email: string,
-    name: Name,
-    roles: Role[],
-    targetOrgs: OrgLists,
-    targetAdminOrgs: OrgLists,
-    isTestData = false,
-  ) {
+  async updateAdministrator(data: any) {
     this._verifyAuthentication();
     this._verifyAdmin();
 
     const cloudUpdateAdministrator = httpsCallable(this.admin!.functions, 'updateAdministrator');
-    const response = await cloudUpdateAdministrator({
-      adminUid,
-      email,
-      name,
-      roles,
-      orgs: targetOrgs,
-      adminOrgs: targetAdminOrgs,
-      isTestData,
-    });
-
-    if (_get(response.data as string, 'status') !== 'ok') {
-      throw new Error('Failed to update administrator user account.');
-    }
+    return await cloudUpdateAdministrator(data);
   }
 
   async removeAdministratorFromSite(adminUid: string, siteId: string) {
