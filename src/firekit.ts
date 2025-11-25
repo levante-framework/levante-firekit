@@ -1202,7 +1202,6 @@ export class RoarFirekit {
    */
   async upsertAdministration(data: any) {
     this._verifyAuthentication();
-    // this._verifyAdmin();
 
     const upsertAdministrationFunction = httpsCallable(this.admin!.functions, 'upsertAdministration');
 
@@ -1277,7 +1276,6 @@ export class RoarFirekit {
 
   async createNewPermissionsAdmin(data: any) {
     this._verifyAuthentication();
-    // this._verifyAdmin();
 
     const cloudCreateAdminUser = httpsCallable(this.admin!.functions, 'createAdministrator');
     return await cloudCreateAdminUser(data);
@@ -1285,7 +1283,6 @@ export class RoarFirekit {
 
   async updateAdministrator(data: any) {
     this._verifyAuthentication();
-    // this._verifyAdmin();
 
     const cloudUpdateAdministrator = httpsCallable(this.admin!.functions, 'updateAdministrator');
     return await cloudUpdateAdministrator(data);
@@ -1293,7 +1290,6 @@ export class RoarFirekit {
 
   async removeAdministratorFromSite(adminUid: string, siteId: string) {
     this._verifyAuthentication();
-    // this._verifyAdmin();
 
     const cloudRemoveAdministratorFromSite = httpsCallable(this.admin!.functions, 'removeAdministratorFromSite');
     const response = await cloudRemoveAdministratorFromSite({ adminUid, siteId });
@@ -1315,7 +1311,6 @@ export class RoarFirekit {
     [key: string]: unknown;
   }) {
     this._verifyAuthentication();
-    // this._verifyAdmin();
 
     const cloudUpsertOrg = httpsCallable(this.admin!.functions, 'upsertOrg');
     return await cloudUpsertOrg({ orgData });
@@ -1333,7 +1328,6 @@ export class RoarFirekit {
     registered,
   }: TaskVariantBase) {
     this._verifyAuthentication();
-    // this._verifyAdmin();
 
     const task = new RoarTaskVariant({
       db: this.admin!.db,
@@ -1376,7 +1370,6 @@ export class RoarFirekit {
 
   async createUsers(data: any) {
     this._verifyAuthentication();
-    // this._verifyAdmin();
 
     const cloudCreateUsers = httpsCallable(this.admin!.functions, 'createUsers');
 
@@ -1399,7 +1392,6 @@ export class RoarFirekit {
 
   async linkUsers(users: LevanteUserData[]) {
     this._verifyAuthentication();
-    // this._verifyAdmin();
 
     const cloudLinkUsers = httpsCallable(this.admin!.functions, 'linkUsers');
 
@@ -1420,7 +1412,6 @@ export class RoarFirekit {
     }[],
   ) {
     this._verifyAuthentication();
-    // this._verifyAdmin();
 
     const cloudEditUsers = httpsCallable(this.admin!.functions, 'editUsers');
     const result = await cloudEditUsers({ users });
