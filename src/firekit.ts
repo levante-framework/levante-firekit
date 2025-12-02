@@ -1390,12 +1390,12 @@ export class RoarFirekit {
     }
   }
 
-  async linkUsers(users: LevanteUserData[]) {
+  async linkUsers(data: any) {
     this._verifyAuthentication();
 
     const cloudLinkUsers = httpsCallable(this.admin!.functions, 'linkUsers');
 
-    const result = await cloudLinkUsers({ users });
+    const result = await cloudLinkUsers(data);
     return result;
   }
 
