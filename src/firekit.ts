@@ -1053,6 +1053,112 @@ export class RoarFirekit {
     return response.data.data ?? [];
   }
 
+  public async getUsersByOrg(params: {
+    orgType: string;
+    orgId: string;
+    pageLimit: number;
+    page: number;
+    orderBy?: any[];
+    restrictToActiveUsers?: boolean;
+    select?: string[];
+  }) {
+    this._verifyAuthentication();
+    const callable = httpsCallable(this.admin!.functions, 'getUsersByOrg');
+    const response = (await callable(params)) as HttpsCallableResult<{ status: string; data?: unknown }>;
+    if (_get(response.data, 'status') !== 'ok') {
+      throw new Error('Failed to retrieve users.');
+    }
+    return response.data.data ?? [];
+  }
+
+  public async countUsersByOrg(params: {
+    orgType: string;
+    orgId: string;
+    restrictToActiveUsers?: boolean;
+  }) {
+    this._verifyAuthentication();
+    const callable = httpsCallable(this.admin!.functions, 'countUsersByOrg');
+    const response = (await callable(params)) as HttpsCallableResult<{ status: string; count?: number }>;
+    return response.data.count ?? 0;
+  }
+
+  public async getOrgByName(params: {
+    orgType: string;
+    orgNormalizedName: string;
+    parentDistrict?: string | null;
+    parentSchool?: string | null;
+    orderBy?: any[];
+    select?: string[];
+  }) {
+    this._verifyAuthentication();
+    const callable = httpsCallable(this.admin!.functions, 'getOrgByName');
+    const response = (await callable(params)) as HttpsCallableResult<{ status: string; data?: unknown }>;
+    if (_get(response.data, 'status') !== 'ok') {
+      throw new Error('Failed to retrieve org by name.');
+    }
+    return response.data.data ?? [];
+  }
+
+  public async getOrgsForAdmin(params: {
+    orgType: string;
+    selectedDistrict?: string | null;
+    select?: string[];
+  }) {
+    this._verifyAuthentication();
+    const callable = httpsCallable(this.admin!.functions, 'getOrgsForAdmin');
+    const response = (await callable(params)) as HttpsCallableResult<{ status: string; data?: unknown }>;
+    if (_get(response.data, 'status') !== 'ok') {
+      throw new Error('Failed to retrieve orgs for admin.');
+    }
+    return response.data.data ?? [];
+  }
+
+  public async getOrgsAll(params: {
+    orgType: string;
+    parentDistrict?: string | null;
+    parentSchool?: string | null;
+    orderBy?: any[];
+    select?: string[];
+    includeCreators?: boolean;
+    loggedInUserId?: string | null;
+  }) {
+    this._verifyAuthentication();
+    const callable = httpsCallable(this.admin!.functions, 'getOrgsAll');
+    const response = (await callable(params)) as HttpsCallableResult<{ status: string; data?: unknown }>;
+    if (_get(response.data, 'status') !== 'ok') {
+      throw new Error('Failed to retrieve orgs.');
+    }
+    return response.data.data ?? [];
+  }
+
+  public async getDistricts(params: { districts?: Array<{ siteId: string }> | null }) {
+    this._verifyAuthentication();
+    const callable = httpsCallable(this.admin!.functions, 'getDistricts');
+    const response = (await callable(params)) as HttpsCallableResult<{ status: string; data?: unknown }>;
+    return response.data.data ?? [];
+  }
+
+  public async getSchools(params: { districts?: string[] | null }) {
+    this._verifyAuthentication();
+    const callable = httpsCallable(this.admin!.functions, 'getSchools');
+    const response = (await callable(params)) as HttpsCallableResult<{ status: string; data?: unknown }>;
+    return response.data.data ?? [];
+  }
+
+  public async getOrgsBySite(params: { siteId: string }) {
+    this._verifyAuthentication();
+    const callable = httpsCallable(this.admin!.functions, 'getOrgsBySite');
+    const response = (await callable(params)) as HttpsCallableResult<{ status: string; data?: unknown }>;
+    return response.data.data ?? [];
+  }
+
+  public async getTreeOrgs(params: { administrationId: string; assignedOrgs: Record<string, string[]> }) {
+    this._verifyAuthentication();
+    const callable = httpsCallable(this.admin!.functions, 'getTreeOrgs');
+    const response = (await callable(params)) as HttpsCallableResult<{ status: string; data?: unknown }>;
+    return response.data.data ?? [];
+  }
+
   async getLegalDoc(docName: string) {
     const docRef = doc(this.admin!.db, 'legal', docName);
     const docSnap = await getDoc(docRef);
