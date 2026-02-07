@@ -1053,6 +1053,30 @@ export class RoarFirekit {
     return response.data.data ?? [];
   }
 
+  public async getAdministrationsPage(params: {
+    selectedDistrictId?: string | null;
+    fetchTestData?: boolean;
+    orderBy?: any[];
+  }) {
+    this._verifyAuthentication();
+    const callable = httpsCallable(this.admin!.functions, 'getAdministrationsPage');
+    const response = (await callable(params)) as HttpsCallableResult<{ status: string; data?: unknown }>;
+    if (_get(response.data, 'status') !== 'ok') {
+      throw new Error('Failed to retrieve administrations page.');
+    }
+    return response.data.data ?? { administrations: [], sortedAdministrations: [] };
+  }
+
+  public async getAdminsBySite(params: { siteId: string }) {
+    this._verifyAuthentication();
+    const callable = httpsCallable(this.admin!.functions, 'getAdminsBySite');
+    const response = (await callable(params)) as HttpsCallableResult<{ status: string; data?: unknown }>;
+    if (_get(response.data, 'status') !== 'ok') {
+      throw new Error('Failed to retrieve admins by site.');
+    }
+    return response.data.data ?? [];
+  }
+
   public async getUsersByOrg(params: {
     orgType: string;
     orgId: string;
@@ -1183,6 +1207,16 @@ export class RoarFirekit {
     }
   }
 
+  public async getLegalDocs() {
+    this._verifyAuthentication();
+    const callable = httpsCallable(this.admin!.functions, 'getLegalDocs');
+    const response = (await callable({})) as HttpsCallableResult<{ status: string; data?: unknown }>;
+    if (_get(response.data, 'status') !== 'ok') {
+      throw new Error('Failed to retrieve legal docs.');
+    }
+    return response.data.data ?? [];
+  }
+
   async updateConsentStatus(docName: string, consentVersion: string, params = {}) {
     console.log(`Updating consent status for ${this.dbRefs!.admin.user.path}.`);
     if (!_isEmpty(params) && _get(params, 'dateSigned')) {
@@ -1287,6 +1321,137 @@ export class RoarFirekit {
 
     const result = await cloudCompleteTask({ administrationId, taskId, userId });
     return result;
+  }
+
+  public async getTasks(params: {
+    registered?: boolean;
+    allData?: boolean;
+    orderBy?: any[];
+    select?: string[];
+  }) {
+    this._verifyAuthentication();
+    const callable = httpsCallable(this.admin!.functions, 'getTasks');
+    const response = (await callable(params)) as HttpsCallableResult<{ status: string; data?: unknown }>;
+    if (_get(response.data, 'status') !== 'ok') {
+      throw new Error('Failed to retrieve tasks.');
+    }
+    return response.data.data ?? [];
+  }
+
+  public async getTasksById(params: { taskIds: string[] }) {
+    this._verifyAuthentication();
+    const callable = httpsCallable(this.admin!.functions, 'getTasksById');
+    const response = (await callable(params)) as HttpsCallableResult<{ status: string; data?: unknown }>;
+    if (_get(response.data, 'status') !== 'ok') {
+      throw new Error('Failed to retrieve tasks by id.');
+    }
+    return response.data.data ?? [];
+  }
+
+  public async getVariants(params: { registered?: boolean }) {
+    this._verifyAuthentication();
+    const callable = httpsCallable(this.admin!.functions, 'getVariants');
+    const response = (await callable(params)) as HttpsCallableResult<{ status: string; data?: unknown }>;
+    if (_get(response.data, 'status') !== 'ok') {
+      throw new Error('Failed to retrieve variants.');
+    }
+    return response.data.data ?? [];
+  }
+
+  public async countRuns(params: {
+    administrationId: string;
+    orgType: string;
+    orgId: string;
+    taskId?: string;
+    requireCompleted?: boolean;
+  }) {
+    this._verifyAuthentication();
+    const callable = httpsCallable(this.admin!.functions, 'countRuns');
+    const response = (await callable(params)) as HttpsCallableResult<{ status: string; count?: number }>;
+    return response.data.count ?? 0;
+  }
+
+  public async getRunsPage(params: {
+    administrationId: string;
+    userId?: string;
+    orgType: string;
+    orgId: string;
+    taskId?: string;
+    pageLimit?: number;
+    page?: number;
+    select?: string[];
+    scoreKey?: string;
+    paginate?: boolean;
+  }) {
+    this._verifyAuthentication();
+    const callable = httpsCallable(this.admin!.functions, 'getRunsPage');
+    const response = (await callable(params)) as HttpsCallableResult<{ status: string; data?: unknown }>;
+    if (_get(response.data, 'status') !== 'ok') {
+      throw new Error('Failed to retrieve runs.');
+    }
+    return response.data.data ?? [];
+  }
+
+  public async countAssignments(params: {
+    adminId: string;
+    orgType: string;
+    orgId: string | null;
+    orgArray?: string[] | null;
+    filter?: any;
+    grades?: string[] | null;
+    useScoresFilter?: boolean;
+  }) {
+    this._verifyAuthentication();
+    const callable = httpsCallable(this.admin!.functions, 'countAssignments');
+    const response = (await callable(params)) as HttpsCallableResult<{ status: string; count?: number }>;
+    return response.data.count ?? 0;
+  }
+
+  public async getAssignmentsPage(params: {
+    adminId: string;
+    orgType: string;
+    orgId: string | null;
+    pageLimit: number;
+    page: number;
+    includeScores?: boolean;
+    includeSurveyResponses?: boolean;
+    select?: string[];
+    paginate?: boolean;
+    filters?: any[];
+    orderBy?: any[];
+  }) {
+    this._verifyAuthentication();
+    const callable = httpsCallable(this.admin!.functions, 'getAssignmentsPage');
+    const response = (await callable(params)) as HttpsCallableResult<{ status: string; data?: unknown }>;
+    if (_get(response.data, 'status') !== 'ok') {
+      throw new Error('Failed to retrieve assignments.');
+    }
+    return response.data.data ?? [];
+  }
+
+  public async getUserAssignments(params: { roarUid: string }) {
+    this._verifyAuthentication();
+    const callable = httpsCallable(this.admin!.functions, 'getUserAssignments');
+    const response = (await callable(params)) as HttpsCallableResult<{ status: string; data?: unknown }>;
+    if (_get(response.data, 'status') !== 'ok') {
+      throw new Error('Failed to retrieve user assignments.');
+    }
+    return response.data.data ?? [];
+  }
+
+  public async getAssignmentsByNameAndSite(params: {
+    name: string;
+    normalizedName: string;
+    siteId: string;
+    adminId?: string;
+  }) {
+    this._verifyAuthentication();
+    const callable = httpsCallable(this.admin!.functions, 'getAssignmentsByNameAndSite');
+    const response = (await callable(params)) as HttpsCallableResult<{ status: string; data?: unknown }>;
+    if (_get(response.data, 'status') !== 'ok') {
+      throw new Error('Failed to retrieve assignments by name and site.');
+    }
+    return response.data.data ?? [];
   }
 
   // These are all methods that will be important for admins, but not necessary for students
