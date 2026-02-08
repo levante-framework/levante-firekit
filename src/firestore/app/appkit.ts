@@ -89,7 +89,7 @@ export class RoarAppkit {
       this.firebaseProject = await initializeFirebaseProject(this.firebaseConfig, 'admin');
     }
 
-    onAuthStateChanged(this.firebaseProject!.auth, (user) => {
+    onAuthStateChanged(this.firebaseProject!.auth, (user: unknown) => {
       this._authenticated = Boolean(user);
     });
 
@@ -181,6 +181,24 @@ export class RoarAppkit {
       throw new Error('This run has not started. Use the startRun method first.');
     }
   }
+
+  /**
+   * Add interaction data for the current trial
+   * 
+   * This will keep a running log of interaction data for the current trial.
+   * The log will be reset after each `writeTrial` call.
+   
+   * @param {InteractionEvent} interaction - interaction event
+   * @method
+   * @async
+   * 
+   * Note: This is supported in ROAR, but not in levante.
+   * Probably is good idea to implement it in levante.
+   */
+    addInteraction() {
+      // Not implemented in levante
+      return null;
+    }
 
   /**
    * Update the engagement flags for the current run.
