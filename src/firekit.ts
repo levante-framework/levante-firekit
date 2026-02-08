@@ -1035,15 +1035,18 @@ export class RoarFirekit {
   public async getAdministrations({
     testData = false,
     restrictToOpenAdministrations = false,
+    idsOnly = false,
   }: {
     testData: boolean;
     restrictToOpenAdministrations: boolean;
+    idsOnly: boolean;
   }) {
     this._verifyAuthentication();
     const getAdministrationCallable = httpsCallable(this.admin!.functions, 'getAdministrations');
     const response = (await getAdministrationCallable({
       testData,
       restrictToOpenAdministrations,
+      idsOnly,
     })) as HttpsCallableResult<{ status: string; data?: unknown }>;
 
     if (_get(response.data, 'status') !== 'ok') {
