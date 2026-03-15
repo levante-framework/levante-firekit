@@ -14,6 +14,7 @@ import {
   where,
   getDoc,
 } from 'firebase/firestore';
+import _isEqual from 'lodash/isEqual';
 import { mergeGameParams, removeUndefined, replaceValues } from '../util';
 
 export interface TaskVariantBase {
@@ -25,6 +26,7 @@ export interface TaskVariantBase {
   taskVersion?: string;
   gameConfig?: object;
   external?: boolean;
+  variantId?: string;
   variantName: string;
   variantParams: { [key: string]: unknown };
   registered?: boolean;
@@ -109,6 +111,7 @@ export class RoarTaskVariant {
     taskVersion = undefined,
     registered,
     external,
+    variantId = undefined,
     variantName,
     variantParams = {},
   }: TaskVariantBase) {
@@ -126,8 +129,8 @@ export class RoarTaskVariant {
     this.variantParams = variantParams;
     this.taskRef = doc(this.db, 'tasks', this.taskId);
     this.variantsCollectionRef = collection(this.taskRef, 'variants');
-    this.variantId = undefined;
-    this.variantRef = undefined;
+    this.variantId = variantId;
+    this.variantRef = variantId ? doc(this.variantsCollectionRef, variantId) : undefined;
   }
 
   /**
@@ -235,5 +238,28 @@ export class RoarTaskVariant {
 
     this.variantParams = merged;
     await this.toFirestore();
+  }
+
+  async setVariantRef() {
+    // If this is being called that means the variantId was not provided in the constructor
+    if (!this.variantParams) {
+      // If variant params are not then there is no way to determine the variant ref
+      throw new Error('Cannot set variant ref without variant params or variant id. Please provide one of them.');
+    }
+
+    // Query all the variants and do a deep match on the params field
+    const q = query(
+      this.variantsCollectionRef,
+      orderBy('updatedAt', 'desc'),
+    );
+    const querySnapshot = await getDocs(q);
+    // Go through the docs and match the this.variantParams with the params field in the doc
+    for (const docSnap of querySnapshot.docs) {
+      if (_isEqual(docSnap.data().params, this.variantParams)) {
+        this.variantId = docSnap.id;
+        break;
+      }
+    }
+    this.variantRef = doc(this.variantsCollectionRef, this.variantId);
   }
 }
