@@ -83,6 +83,7 @@ export interface RunInput {
   runId?: string;
   testData?: boolean;
   demoData?: boolean;
+  trialContainer?: 'runs' | 'surveyResponses';
 }
 
 interface ScoreUpdate {
@@ -136,6 +137,7 @@ export class RoarRun {
     runId,
     testData = false,
     demoData = false,
+    trialContainer = 'runs',
   }: RunInput) {
     this.user = user;
     this.task = task;
@@ -145,10 +147,14 @@ export class RoarRun {
     this.testData = testData;
     this.demoData = demoData;
 
-    if (runId) {
-      this.runRef = doc(this.user.userRef, 'runs', runId);
+    // {trialContainer}/{runId OR assignmentId}/trials
+    const trialContainerCollection = collection(this.user.userRef, trialContainer);
+    if (runId && trialContainer === 'runs') {
+      this.runRef = doc(trialContainerCollection, runId);
+    } else if (assignmentId && trialContainer === 'surveyResponses') {
+      this.runRef = doc(trialContainerCollection, assignmentId);
     } else {
-      this.runRef = doc(collection(this.user.userRef, 'runs'));
+      this.runRef = doc(trialContainerCollection);
     }
 
     if (!this.task.taskRef) {

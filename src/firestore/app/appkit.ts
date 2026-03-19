@@ -18,6 +18,7 @@ export interface AppkitInput {
   readOrgs?: OrgLists;
   assignmentId?: string;
   runId?: string;
+  trialContainer?: 'runs' | 'surveyResponses';
 }
 
 /**
@@ -40,6 +41,7 @@ export class RoarAppkit {
   private _authenticated: boolean;
   private _initialized: boolean;
   private _started: boolean;
+  private _trialContainer?: 'runs' | 'surveyResponses';
   /**
    * Create a RoarAppkit.
    *
@@ -60,6 +62,7 @@ export class RoarAppkit {
     readOrgs,
     assignmentId,
     runId,
+    trialContainer,
   }: AppkitInput) {
     if (!firebaseProject && !firebaseConfig) {
       throw new Error('You must provide either a firebaseProjectKit or firebaseConfig');
@@ -82,6 +85,7 @@ export class RoarAppkit {
     this._authenticated = false;
     this._initialized = false;
     this._started = false;
+    this._trialContainer = trialContainer;
   }
 
   private async _init() {
@@ -108,6 +112,7 @@ export class RoarAppkit {
       readOrgs: this._readOrgs,
       assignmentId: this._assignmentId,
       runId: this._runId,
+      trialContainer: this._trialContainer,
     });
     await this.user.init();
     this._initialized = true;

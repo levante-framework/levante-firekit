@@ -1117,7 +1117,7 @@ export class RoarFirekit {
     return _roarUid;
   }
 
-  async startAssessment(administrationId: string, taskId: string, taskVersion: string, targetUid?: string) {
+  async startAssessment(administrationId: string, taskId: string, taskVersion: string, trialContainer: 'runs' | 'surveyResponses' = 'runs', targetUid?: string) {
     this._verifyAuthentication();
 
     const uid = targetUid ?? this.roarUid ?? (await this.getRoarUid());
@@ -1163,6 +1163,7 @@ export class RoarFirekit {
         readOrgs: result.data.readOrgs,
         assignmentId: administrationId,
         taskInfo,
+        trialContainer,
       });
 
       return app;
