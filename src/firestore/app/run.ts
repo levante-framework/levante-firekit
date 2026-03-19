@@ -147,18 +147,14 @@ export class RoarRun {
     this.testData = testData;
     this.demoData = demoData;
 
-    if (runId) {
-      if (trialContainer === 'surveyResponses' && assignmentId) {
-        this.runRef = doc(this.user.userRef, trialContainer, runId, assignmentId);
-      } else {
-        this.runRef = doc(this.user.userRef, trialContainer, runId);
-      }
+    // {trialContainer}/{runId OR assignmentId}/trials
+    const trialContainerCollection = collection(this.user.userRef, trialContainer);
+    if (runId && trialContainer === 'runs') {
+      this.runRef = doc(trialContainerCollection, runId);
+    } else if (assignmentId && trialContainer === 'surveyResponses') {
+      this.runRef = doc(trialContainerCollection, assignmentId);
     } else {
-      if (trialContainer === 'surveyResponses' && assignmentId) {
-        this.runRef = doc(collection(this.user.userRef, trialContainer), assignmentId);
-      } else {
-        this.runRef = doc(collection(this.user.userRef, trialContainer));
-      }
+      this.runRef = doc(trialContainerCollection);
     }
 
     if (!this.task.taskRef) {
