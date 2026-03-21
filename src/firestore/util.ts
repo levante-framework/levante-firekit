@@ -67,7 +67,7 @@ export const replaceValues = (
 export interface CommonFirebaseConfig {
   projectId: string;
   apiKey: string;
-  siteKey: string;
+  siteKey?: string;
   debugToken?: string;
 }
 
