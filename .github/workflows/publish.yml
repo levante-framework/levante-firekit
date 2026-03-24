@@ -1,20 +1,16 @@
 name: Publish Package to npmjs
 on:
-  push:
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
-      - 'v[0-9]+.[0-9]+.[0-9]+-alpha.[0-9]+'
-      - 'v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+'
+  workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout 🛎️
-        uses: actions/checkout@v3
-      # Setup .npmrc file to publish to npm
-      - uses: actions/setup-node@v2
+        uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '17.x'
+          node-version: '20.x'
           registry-url: 'https://registry.npmjs.org'
       - name: Install and Build 🔧
         run: |
@@ -25,12 +21,3 @@ jobs:
         run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          ROAR_CI_USER_EMAIL: ${{ secrets.ROAR_CI_USER_EMAIL }}
-          ROAR_CI_USER_PASSWORD: ${{ secrets.ROAR_CI_USER_PASSWORD }}
-          ROAR_FIREBASE_API_KEY: ${{ secrets.ROAR_FIREBASE_API_KEY }}
-          ROAR_FIREBASE_APP_ID: ${{ secrets.ROAR_FIREBASE_APP_ID }}
-          ROAR_FIREBASE_MEASUREMENT_ID: ${{ secrets.ROAR_FIREBASE_MEASUREMENT_ID }}
-          ROAR_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.ROAR_FIREBASE_MESSAGING_SENDER_ID }}
-          ROAR_FIREBASE_AUTH_DOMAIN: ${{ secrets.ROAR_FIREBASE_AUTH_DOMAIN }}
-          ROAR_FIREBASE_PROJECT_ID: ${{ secrets.ROAR_FIREBASE_PROJECT_ID }}
-          ROAR_FIREBASE_STORAGE_BUCKET: ${{ secrets.ROAR_FIREBASE_STORAGE_BUCKET }}
