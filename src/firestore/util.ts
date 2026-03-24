@@ -1,4 +1,4 @@
-import { getApp, initializeApp } from 'firebase/app';
+import { type FirebaseOptions, getApp, initializeApp } from 'firebase/app';
 import {
   Auth,
   browserLocalPersistence,
@@ -67,7 +67,7 @@ export const replaceValues = (
 export interface CommonFirebaseConfig {
   projectId: string;
   apiKey: string;
-  siteKey: string;
+  siteKey?: string;
   debugToken?: string;
 }
 
@@ -88,6 +88,32 @@ export interface LiveFirebaseConfig extends CommonFirebaseConfig {
 }
 
 export type FirebaseConfig = LiveFirebaseConfig | EmulatorFirebaseConfig;
+
+const EMULATOR_PROJECT_ID = 'demo-emulator';
+
+function isLiveFirebaseConfig(config: FirebaseConfig): config is LiveFirebaseConfig {
+  return 'authDomain' in config && typeof (config as LiveFirebaseConfig).authDomain === 'string';
+}
+
+/**
+ * Options for initializeApp when using local emulators. Keeps emulator projectId so
+ * Firestore/Auth emulators match, but passes through web client fields from the real
+ * project (authDomain, appId, etc.) so OAuth flows like Google sign-in work.
+ */
+function buildEmulatorFirebaseAppOptions(config: FirebaseConfig): FirebaseOptions {
+  const options: FirebaseOptions = {
+    projectId: EMULATOR_PROJECT_ID,
+    apiKey: config.apiKey,
+  };
+  if (isLiveFirebaseConfig(config)) {
+    options.authDomain = config.authDomain;
+    options.appId = config.appId;
+    options.storageBucket = config.storageBucket;
+    options.messagingSenderId = config.messagingSenderId;
+    if (config.measurementId) options.measurementId = config.measurementId;
+  }
+  return options;
+}
 
 export const safeInitializeApp = (config: LiveFirebaseConfig, name: string) => {
   try {
@@ -164,7 +190,8 @@ export const initializeFirebaseProject = async (
 
   if (emulatorConfig) {
     console.log('Initializing Firebase emulator', emulatorConfig);
-    const app = initializeApp({ projectId: emulatorConfig ? 'demo-emulator' : config.projectId, apiKey: config.apiKey }, name);
+    const appOptions = buildEmulatorFirebaseAppOptions(config);
+    const app = initializeApp(appOptions, name);
     const auth = optionallyMarkRaw('auth', getAuth(app));
     const db = optionallyMarkRaw('db', getFirestore(app));
     const functions = optionallyMarkRaw('functions', getFunctions(app));

@@ -179,7 +179,7 @@ export class RoarRun {
     await this.user.checkUserExists();
 
     if (!this.task.variantRef) {
-      await this.task.toFirestore();
+      await this.task.setVariantRef();
     }
 
     const userDocSnap = await getDoc(this.user.userRef);
@@ -199,6 +199,7 @@ export class RoarRun {
       }
     }
 
+    // TODO: Check if grade and schoolLevel are needed for levante.
     const userDocData = _pick(userDocSnap.data(), [
       'grade',
       'assessmentPid',
@@ -209,6 +210,7 @@ export class RoarRun {
     ]);
 
     // Grab the testData and demoData flags from the user document.
+    // TODO: Check if testData and demoData are needed for levante.
     const { testData: isTestUser, demoData: isDemoUser } = userDocSnap.data();
 
     // Update testData and demoData for this instance based on the test/demo
@@ -249,6 +251,7 @@ export class RoarRun {
 
     const batch = writeBatch(this.user.db);
     batch.set(this.runRef, removeUndefined(runData));
+    // TODO: Check if this next update is needed for levante.
     batch.update(this.user.userRef, {
       tasks: arrayUnion(this.task.taskId),
       variants: arrayUnion(this.task.variantId),
