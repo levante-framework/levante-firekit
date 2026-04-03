@@ -1117,7 +1117,13 @@ export class RoarFirekit {
     return _roarUid;
   }
 
-  async startAssessment(administrationId: string, taskId: string, taskVersion: string, trialContainer: 'runs' | 'surveyResponses' = 'runs', targetUid?: string) {
+  async startAssessment(
+    administrationId: string,
+    taskId: string,
+    taskVersion: string,
+    trialContainer: 'runs' | 'surveyResponses' = 'runs',
+    targetUid?: string,
+  ) {
     this._verifyAuthentication();
 
     const uid = targetUid ?? this.roarUid ?? (await this.getRoarUid());
@@ -1375,7 +1381,10 @@ export class RoarFirekit {
   async createUsers(data: any) {
     this._verifyAuthentication();
 
-    const cloudCreateUsers = httpsCallable(this.admin!.functions, 'createUsers');
+    const cloudCreateUsers = httpsCallable(this.admin!.functions, 'createUsers', {
+      // Client default is 70s; must be ≥ Cloud Function timeout or the call fails with deadline-exceeded first.
+      timeout: 540_000,
+    });
 
     const result = await cloudCreateUsers(data);
     return result;
