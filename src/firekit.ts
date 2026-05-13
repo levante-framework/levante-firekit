@@ -1311,11 +1311,11 @@ export class RoarFirekit {
     }
   }
 
-  async getSiteOverview({ siteId }: GetSiteOverviewParams) {
+  async getSiteOverview(params: GetSiteOverviewParams): Promise<GetSiteOverviewResult> {
     this._verifyAuthentication();
 
     const cloudGetSiteOverview = httpsCallable(this.admin!.functions, 'getSiteOverview');
-    const response = await cloudGetSiteOverview({ siteId });
+    const response = await cloudGetSiteOverview(params);
     return response.data as GetSiteOverviewResult;
   }
 
