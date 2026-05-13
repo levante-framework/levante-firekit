@@ -40,6 +40,8 @@ import {
 } from 'firebase/firestore';
 import { httpsCallable, HttpsCallableResult } from 'firebase/functions';
 
+import type { GetSiteOverviewParams, GetSiteOverviewResult } from '@levante-framework/levante-zod';
+
 import { AuthPersistence, MarkRawConfig, emptyOrgList, initializeFirebaseProject } from './firestore/util';
 import {
   Assessment,
@@ -1307,6 +1309,14 @@ export class RoarFirekit {
     if (_get(response.data as string, 'status') !== 'ok') {
       throw new Error('Failed to remove administrator from site.');
     }
+  }
+
+  async getSiteOverview({ siteId }: GetSiteOverviewParams) {
+    this._verifyAuthentication();
+
+    const cloudGetSiteOverview = httpsCallable(this.admin!.functions, 'getSiteOverview');
+    const response = await cloudGetSiteOverview({ siteId });
+    return response.data as GetSiteOverviewResult;
   }
 
   /**
