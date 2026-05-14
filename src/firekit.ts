@@ -102,16 +102,16 @@ export interface RequestConfig {
   baseURL: string;
 }
 
-// interface LevanteUserData {
-//   id: string;
-//   userType: string;
-//   childId: string;
-//   parentId: string;
-//   teacherId: string;
-//   month: string;
-//   year: string;
-//   group: string[];
-// }
+interface _LevanteUserData {
+  id: string;
+  userType: string;
+  childId: string;
+  parentId: string;
+  teacherId: string;
+  month: string;
+  year: string;
+  group: string[];
+}
 
 interface LevanteSurveyResponses {
   [key: string]: string;
