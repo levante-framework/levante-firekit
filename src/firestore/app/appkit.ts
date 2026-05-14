@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { onAuthStateChanged } from 'firebase/auth';
 import { updateDoc, arrayRemove, arrayUnion } from 'firebase/firestore';
 import { ref, getDownloadURL } from 'firebase/storage';
@@ -7,7 +6,6 @@ import { TaskVariantForAssessment, RoarTaskVariant } from './task';
 import { UserInfo, UserUpdateInput, RoarAppUser } from './user';
 import { FirebaseProject, OrgLists } from '../../interfaces';
 import { FirebaseConfig, initializeFirebaseProject } from '../util';
-
 
 export interface AppkitInput {
   firebaseProject?: FirebaseProject;
@@ -200,10 +198,10 @@ export class RoarAppkit {
    * Note: This is supported in ROAR, but not in levante.
    * Probably is good idea to implement it in levante.
    */
-    addInteraction() {
-      // Not implemented in levante
-      return null;
-    }
+  addInteraction() {
+    // Not implemented in levante
+    return null;
+  }
 
   /**
    * Update the engagement flags for the current run.

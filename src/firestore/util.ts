@@ -160,10 +160,11 @@ const enableOfflinePersistence = async (db: Firestore, offlineConfig: OfflineCon
     try {
       await enableIndexedDbPersistence(db);
       console.log('Firestore offline persistence enabled');
-    } catch (error: any) {
-      if (error.code === 'failed-precondition') {
+    } catch (error: unknown) {
+      const code = error instanceof Error ? (error as { code?: string }).code : undefined;
+      if (code === 'failed-precondition') {
         console.warn('Persistence failed: Multiple tabs open, persistence can only be enabled in one tab at a time');
-      } else if (error.code === 'unimplemented') {
+      } else if (code === 'unimplemented') {
         console.warn('Persistence is not available in this browser');
       } else {
         console.error('Failed to enable persistence:', error);
@@ -204,7 +205,6 @@ export const initializeFirebaseProject = async (
     await enableOfflinePersistence(db, offlineConfig);
 
     const originalInfo = console.info;
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
     console.info = () => {};
     connectAuthEmulator(auth, `http://${emulatorConfig.auth.host}:${emulatorConfig.auth.port}`);
     console.info = originalInfo;
@@ -326,7 +326,7 @@ export const mergeGameParams = (oldParams: { [key: string]: unknown }, newParams
 
 /**
  * Retry an async operation with exponential backoff
- * 
+ *
  * @param operation - The async function to retry
  * @param options - Retry configuration options
  * @returns The result of the operation
@@ -351,33 +351,32 @@ export async function retryOperation<T>(
   } = options;
 
   let lastError: Error | unknown;
-  
+
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       return await operation();
     } catch (error) {
       lastError = error;
-      
+
       if (attempt === maxRetries) {
         // All retries exhausted
         console.error(`${operationName} failed after ${maxRetries + 1} attempts:`, error);
         throw error;
       }
-      
+
       // Calculate delay with exponential backoff
       const delay = Math.min(initialDelayMs * Math.pow(backoffMultiplier, attempt), maxDelayMs);
-      
+
       console.warn(
-        `${operationName} failed (attempt ${attempt + 1}/${maxRetries + 1}). ` +
-        `Retrying in ${delay}ms...`,
-        error
+        `${operationName} failed (attempt ${attempt + 1}/${maxRetries + 1}). ` + `Retrying in ${delay}ms...`,
+        error,
       );
-      
+
       // Wait before retrying
-      await new Promise(resolve => setTimeout(resolve, delay));
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
-  
+
   // This should never be reached, but TypeScript needs it
   throw lastError;
 }
@@ -460,13 +459,11 @@ export const getTreeTableOrgs = (inputOrgs: OrgNodes) => {
             },
           ];
         } else {
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           topLevelOrgs[districtIndex].children!.push({
             ..._school,
             key: `${_district.key}-${_district.children.length}`,
             ...(classesForThisSchool.length > 0 && {
               children: classesForThisSchool.map((element, index) => ({
-                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
                 key: `${_district.key}-${_district.children!.length}-${index}`,
                 data: element.data,
               })),
@@ -479,7 +476,6 @@ export const getTreeTableOrgs = (inputOrgs: OrgNodes) => {
           key: `${topLevelOrgs.length}`,
           ...(classesForThisSchool.length > 0 && {
             children: classesForThisSchool.map((element, index) => ({
-              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
               key: `${topLevelOrgs.length}-${index}`,
               data: element.data,
             })),
@@ -506,7 +502,6 @@ export const getTreeTableOrgs = (inputOrgs: OrgNodes) => {
             },
           ];
         } else {
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           topLevelOrgs[districtIndex].children!.push({
             key: `${_district.key}-${_district.children.length}`,
             data: _class.data,
@@ -535,7 +530,6 @@ export const getTreeTableOrgs = (inputOrgs: OrgNodes) => {
             },
           ];
         } else {
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           topLevelOrgs[schoolIndex].children!.push({
             ..._class,
             key: `${_school.key}-${_school.children.length}`,

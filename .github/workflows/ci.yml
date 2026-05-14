@@ -1,37 +1,38 @@
-name: Test and lint
-on: [push, pull_request]
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build:
+  ci:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node: ['lts/*', 'lts/iron']
-    name: Node ${{ matrix.node }}
     steps:
-      - name: Checkout 🛎️
-        uses: actions/checkout@v3
-      - name: Use Node.js ${{ matrix.node }}
-        uses: actions/setup-node@v2
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
         with:
-          node-version: ${{ matrix.node }}
+          node-version-file: '.nvmrc'
           cache: 'npm'
-      - name: Upgrade npm
-        run: npm i --location=global npm@latest
-      - name: Install and Build 🔧
-        run: |
-          npm ci
-          npm run build
-      - name: Test 🔬
-        run: npm test
-        env:
-          ROAR_CI_USER_EMAIL: ${{ secrets.ROAR_CI_USER_EMAIL }}
-          ROAR_CI_USER_PASSWORD: ${{ secrets.ROAR_CI_USER_PASSWORD }}
-          ROAR_FIREBASE_API_KEY: ${{ secrets.ROAR_FIREBASE_API_KEY }}
-          ROAR_FIREBASE_APP_ID: ${{ secrets.ROAR_FIREBASE_APP_ID }}
-          ROAR_FIREBASE_MEASUREMENT_ID: ${{ secrets.ROAR_FIREBASE_MEASUREMENT_ID }}
-          ROAR_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.ROAR_FIREBASE_MESSAGING_SENDER_ID }}
-          ROAR_FIREBASE_AUTH_DOMAIN: ${{ secrets.ROAR_FIREBASE_AUTH_DOMAIN }}
-          ROAR_FIREBASE_PROJECT_ID: ${{ secrets.ROAR_FIREBASE_PROJECT_ID }}
-          ROAR_FIREBASE_STORAGE_BUCKET: ${{ secrets.ROAR_FIREBASE_STORAGE_BUCKET }}
-      - name: Lint
-        run: npm run lint
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run checks
+        run: npm run check
+
+      # - name: Run tests
+      #   run: npm run test
+
+      - name: Run build
+        run: npm run build

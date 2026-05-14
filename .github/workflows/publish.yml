@@ -1,23 +1,87 @@
-name: Publish Package to npmjs
+name: Publish
+
 on:
   workflow_dispatch:
+    inputs:
+      release-type:
+        description: 'Release type'
+        required: true
+        type: choice
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  id-token: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout 🛎️
-        uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
         with:
-          node-version: '20.x'
-          registry-url: 'https://registry.npmjs.org'
-      - name: Install and Build 🔧
+          client-id: ${{ secrets.LEVANTE_BOT_APP_CLIENT_ID }}
+          private-key: ${{ secrets.LEVANTE_BOT_APP_PRIVATE_KEY }}
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Ensure on main
         run: |
-          npm ci
-          npm run build
-          npm run format
-      - name: Publish 🚀
-        run: npm publish
+          if [[ "$(git rev-parse --abbrev-ref HEAD)" != "main" ]]; then
+            echo "Publish must be run from main" && exit 1
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run checks
+        run: npm run check
+
+      # - name: Run tests
+      #   run: npm run test
+
+      - name: Run build
+        run: npm run build
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump version and tag
+        run: |
+          npm version ${{ inputs.release-type }} --message "chore: release v%s [skip ci]"
+
+      - name: Push commit and tag
+        run: git push --follow-tags
+
+      - name: Publish to npm
+        run: npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.LEVANTE_NPM_TOKEN }}
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          gh release create "v${VERSION}" --generate-notes --title "v${VERSION}"

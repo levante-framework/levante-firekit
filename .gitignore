@@ -2,6 +2,7 @@
 
 /roarconfig.json
 .idea
+.DS_Store
 # Logs
 logs
 *.log

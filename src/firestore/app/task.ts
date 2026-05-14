@@ -37,7 +37,6 @@ export interface TaskVariantForAssessment extends TaskVariantBase {
   variantId: string;
 }
 
-
 export interface FirestoreTaskData {
   name?: string;
   description?: string | null;
@@ -68,7 +67,6 @@ export interface FirestoreVariantData {
   createdAt?: ReturnType<typeof serverTimestamp>;
   updatedAt: ReturnType<typeof serverTimestamp>;
 }
-
 
 /**
  * Class representing a ROAR task.
@@ -155,7 +153,7 @@ export class RoarTaskVariant {
       lastUpdated: serverTimestamp(),
       updatedAt: serverTimestamp(),
       // Only set createdAt if this is a new document
-      ...((!taskExists) && { createdAt: serverTimestamp() }),
+      ...(!taskExists && { createdAt: serverTimestamp() }),
     };
 
     try {
@@ -164,7 +162,7 @@ export class RoarTaskVariant {
       console.error('RoarTaskVariant toFirestore: error saving task to firestore', {
         error,
         errorMessage: error instanceof Error ? error.message : String(error),
-        errorCode: (error as any)?.code,
+        errorCode: (error as { code?: string })?.code,
         taskId: this.taskId,
         taskRefPath: this.taskRef?.path,
       });
@@ -248,10 +246,7 @@ export class RoarTaskVariant {
     }
 
     // Query all the variants and do a deep match on the params field
-    const q = query(
-      this.variantsCollectionRef,
-      orderBy('updatedAt', 'desc'),
-    );
+    const q = query(this.variantsCollectionRef, orderBy('updatedAt', 'desc'));
     const querySnapshot = await getDocs(q);
     // Go through the docs and match the this.variantParams with the params field in the doc
     for (const docSnap of querySnapshot.docs) {

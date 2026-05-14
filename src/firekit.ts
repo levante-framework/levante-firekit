@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import _get from 'lodash/get';
 import _isEmpty from 'lodash/isEmpty';
 import {
@@ -42,18 +41,8 @@ import { httpsCallable, HttpsCallableResult } from 'firebase/functions';
 
 import type { GetSiteOverviewParams, GetSiteOverviewResult } from '@levante-framework/levante-zod';
 
-import { AuthPersistence, MarkRawConfig, emptyOrgList, initializeFirebaseProject } from './firestore/util';
-import {
-  Assessment,
-  FirebaseProject,
-  Name,
-  OrgLists,
-  RoarConfig,
-  StartTaskResult,
-  UserDataInAdminDb,
-  Legal,
-  Role,
-} from './interfaces';
+import { AuthPersistence, MarkRawConfig, initializeFirebaseProject } from './firestore/util';
+import { FirebaseProject, Name, OrgLists, RoarConfig, StartTaskResult, UserDataInAdminDb } from './interfaces';
 import { UserInput } from './firestore/app/user';
 import { RoarAppkit } from './firestore/app/appkit';
 import { RoarTaskVariant, FirestoreVariantData, FirestoreTaskData, TaskVariantBase } from './firestore/app/task';
@@ -113,16 +102,16 @@ export interface RequestConfig {
   baseURL: string;
 }
 
-interface LevanteUserData {
-  id: string;
-  userType: string;
-  childId: string;
-  parentId: string;
-  teacherId: string;
-  month: string;
-  year: string;
-  group: string[];
-}
+// interface LevanteUserData {
+//   id: string;
+//   userType: string;
+//   childId: string;
+//   parentId: string;
+//   teacherId: string;
+//   month: string;
+//   year: string;
+//   group: string[];
+// }
 
 interface LevanteSurveyResponses {
   [key: string]: string;
@@ -213,7 +202,6 @@ export class RoarFirekit {
     this._markRawConfig = markRawConfig;
     this._initialized = false;
     this._idTokens = {};
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
     this.listenerUpdateCallback = listenerUpdateCallback ?? (() => {});
   }
 
@@ -579,7 +567,7 @@ export class RoarFirekit {
   async logInWithEmailAndPassword({ email, password }: { email: string; password: string }) {
     this._verifyInit();
     return signInWithEmailAndPassword(this.admin!.auth, email, password)
-      .then(async (adminUserCredential) => {
+      .then(async () => {
         this._identityProviderType = AuthProviderType.EMAIL;
       })
       .then(() => {
@@ -720,7 +708,7 @@ export class RoarFirekit {
       }
     };
 
-    let oAuthAccessToken: string | undefined;
+    let _oAuthAccessToken: string | undefined;
 
     return signInWithPopup(this.admin!.auth, authProvider)
       .then(async (adminUserCredential) => {
@@ -730,7 +718,7 @@ export class RoarFirekit {
           const credential = GoogleAuthProvider.credentialFromResult(adminUserCredential);
           // This gives you a Google Access Token. You can use it to access Google APIs.
           // TODO: Find a way to put this in the onAuthStateChanged handler
-          oAuthAccessToken = credential?.accessToken;
+          _oAuthAccessToken = credential?.accessToken;
           return credential;
         }
       })
@@ -777,7 +765,7 @@ export class RoarFirekit {
       }
     };
 
-    let oAuthAccessToken: string | undefined;
+    let _oAuthAccessToken: string | undefined;
 
     return linkWithPopup(this.admin!.auth!.currentUser!, authProvider)
       .then(async (adminUserCredential) => {
@@ -786,7 +774,7 @@ export class RoarFirekit {
           const credential = GoogleAuthProvider.credentialFromResult(adminUserCredential);
           // This gives you a Google Access Token. You can use it to access Google APIs.
           // TODO: Find a way to put this in the onAuthStateChanged handler
-          oAuthAccessToken = credential?.accessToken;
+          _oAuthAccessToken = credential?.accessToken;
           return credential;
         }
       })
@@ -1026,10 +1014,13 @@ export class RoarFirekit {
     const taskDocs = await getDocs(this.dbRefs!.admin.tasks);
 
     // Create a map with document IDs as keys and document data as values
-    const taskMap = taskDocs.docs.reduce((acc, doc) => {
-      acc[doc.id] = doc.data();
-      return acc;
-    }, {} as Record<string, object>);
+    const taskMap = taskDocs.docs.reduce(
+      (acc, doc) => {
+        acc[doc.id] = doc.data();
+        return acc;
+      },
+      {} as Record<string, object>,
+    );
 
     return taskMap;
   }
@@ -1075,7 +1066,7 @@ export class RoarFirekit {
           version: _get(data, 'currentCommit'),
         };
       } catch (e) {
-        throw new Error('Error retrieving consent document from GitHub.');
+        throw new Error('Error retrieving consent document from GitHub.', { cause: e });
       }
     } else {
       return null;
@@ -1212,7 +1203,7 @@ export class RoarFirekit {
    *                               provided, this method will update an
    *                               existing administration.
    */
-  async upsertAdministration(data: any) {
+  async upsertAdministration(data: unknown) {
     this._verifyAuthentication();
 
     const upsertAdministrationFunction = httpsCallable(this.admin!.functions, 'upsertAdministration');
@@ -1286,14 +1277,14 @@ export class RoarFirekit {
     }
   }
 
-  async createNewPermissionsAdmin(data: any) {
+  async createNewPermissionsAdmin(data: unknown) {
     this._verifyAuthentication();
 
     const cloudCreateAdminUser = httpsCallable(this.admin!.functions, 'createAdministrator');
     return await cloudCreateAdminUser(data);
   }
 
-  async updateAdministrator(data: any) {
+  async updateAdministrator(data: unknown) {
     this._verifyAuthentication();
 
     const cloudUpdateAdministrator = httpsCallable(this.admin!.functions, 'updateAdministrator');
@@ -1388,7 +1379,7 @@ export class RoarFirekit {
     });
   }
 
-  async createUsers(data: any) {
+  async createUsers(data: unknown) {
     this._verifyAuthentication();
 
     const cloudCreateUsers = httpsCallable(this.admin!.functions, 'createUsers', {
@@ -1413,7 +1404,7 @@ export class RoarFirekit {
     }
   }
 
-  async linkUsers(data: any) {
+  async linkUsers(data: unknown) {
     this._verifyAuthentication();
 
     const cloudLinkUsers = httpsCallable(this.admin!.functions, 'linkUsers');

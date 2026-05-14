@@ -258,10 +258,7 @@ export class RoarRun {
       lastUpdated: serverTimestamp(),
     });
 
-    await retryOperation(
-      () => batch.commit(),
-      { operationName: 'startRun batch commit' }
-    );
+    await retryOperation(() => batch.commit(), { operationName: 'startRun batch commit' });
 
     this.started = true;
   }
@@ -463,7 +460,7 @@ export class RoarRun {
       }
     };
 
-    let scoreUpdate: ScoreUpdate = {};
+    let scoreUpdate: ScoreUpdate;
 
     if (subtask in this.scores.raw) {
       // Then this subtask has already been added to this run.
@@ -541,11 +538,15 @@ export class RoarRun {
     } catch (error) {
       // Catch the "Unsupported field value: undefined" error and
       // provide a more helpful error message to the ROAR app developer.
-      if (error instanceof FirebaseError && error.message.toLowerCase().includes('unsupported field value: undefined')) {
+      if (
+        error instanceof FirebaseError &&
+        error.message.toLowerCase().includes('unsupported field value: undefined')
+      ) {
         throw new Error(
           'The computed or normed scores that you provided contained an undefined value. ' +
             'Firestore does not support storing undefined values. ' +
             'Please remove this value or convert it to ``null``.',
+          { cause: error },
         );
       }
       throw error;
