@@ -125,7 +125,6 @@ export class RoarAppUser {
     if (userType === UserType.guest) {
       this.userRef = doc(this.db, 'guests', this.assessmentUid);
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       this.userRef = doc(this.db, 'users', this.roarUid!);
     }
   }
@@ -212,5 +211,4 @@ export class RoarAppUser {
 
     return await updateDoc(this.userRef, removeUndefined(userData));
   }
-
 }
