@@ -152,7 +152,7 @@ export class RoarRun {
     if (runId && trialContainer === 'runs') {
       this.runRef = doc(trialContainerCollection, runId);
     } else if (assignmentId && trialContainer === 'surveyResponses') {
-      this.runRef = doc(trialContainerCollection, assignmentId);
+      this.runRef = doc(trialContainerCollection);
     } else {
       this.runRef = doc(trialContainerCollection);
     }
