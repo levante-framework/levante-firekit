@@ -203,7 +203,6 @@ export class RoarRun {
     const userDocData = _pick(userDocSnap.data(), [
       'grade',
       'assessmentPid',
-      'assessmentUid',
       'birthMonth',
       'birthYear',
       'schoolLevel',
