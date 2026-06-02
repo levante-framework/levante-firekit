@@ -200,13 +200,7 @@ export class RoarRun {
     }
 
     // TODO: Check if grade and schoolLevel are needed for levante.
-    const userDocData = _pick(userDocSnap.data(), [
-      'grade',
-      'assessmentPid',
-      'birthMonth',
-      'birthYear',
-      'schoolLevel',
-    ]);
+    const userDocData = _pick(userDocSnap.data(), ['grade', 'assessmentPid', 'birthMonth', 'birthYear', 'schoolLevel']);
 
     // Grab the testData and demoData flags from the user document.
     // TODO: Check if testData and demoData are needed for levante.
