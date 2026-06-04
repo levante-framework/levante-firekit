@@ -1137,7 +1137,7 @@ export class RoarFirekit {
         this.roarAppUserInfo = {
           db: this.admin!.db,
           roarUid: uid,
-          assessmentUid: this.admin!.user!.uid,
+          // assessmentUid: this.admin!.user!.uid,
           assessmentPid: result.data.assessmentPid,
           userType: result.data.userData.userType,
         };
