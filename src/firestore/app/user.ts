@@ -15,7 +15,7 @@ import { removeUndefined } from '../util';
 
 export interface UserInfo {
   roarUid?: string;
-  assessmentUid: string;
+  // assessmentUid: string;
   assessmentPid?: string;
   userType?: UserType;
   userMetadata?: { [key: string]: unknown };
@@ -54,7 +54,7 @@ interface FirestoreUserUpdate {
 export class RoarAppUser {
   db: Firestore;
   roarUid?: string;
-  assessmentUid: string;
+  // assessmentUid: string;
   assessmentPid?: string;
   userData?: DocumentData;
   userType: UserType;
@@ -70,7 +70,7 @@ export class RoarAppUser {
    * @param {object} input
    * @param {Firestore} input.db - The assessment Firestore instance to which this user's data will be written
    * @param {string} input.roarUid - The ROAR ID of the user
-   * @param {string} input.assessmentUid - The assessment firebase UID of the user
+   * @param {string} input.assessmentUid - The Firebase Auth UID of the user
    * @param {string} input.assessmentPid - The assessment PID of the user
    * @param {string} input.userType - The user type. Must be either 'admin', 'educator', 'student', 'caregiver', 'guest', or 'researcher.'
    * @param {object} input.userMetadata - An object containing additional user metadata
@@ -83,7 +83,7 @@ export class RoarAppUser {
   constructor({
     db,
     roarUid,
-    assessmentUid,
+    // assessmentUid,
     assessmentPid,
     userType = UserType.guest,
     userMetadata = {},
@@ -113,7 +113,7 @@ export class RoarAppUser {
     this.db = db;
     this.roarUid = roarUid;
     this.assessmentPid = assessmentPid;
-    this.assessmentUid = assessmentUid;
+    // this.assessmentUid = assessmentUid;
     this.userType = userType;
     this.userMetadata = userMetadata;
     this.testData = testData;
@@ -122,11 +122,11 @@ export class RoarAppUser {
     this.offlineTasks = offlineTasks;
     this.offlineAdministrations = offlineAdministrations;
 
-    if (userType === UserType.guest) {
-      this.userRef = doc(this.db, 'guests', this.assessmentUid);
-    } else {
-      this.userRef = doc(this.db, 'users', this.roarUid!);
-    }
+    // if (userType === UserType.guest) {
+    //   this.userRef = doc(this.db, 'guests', this.assessmentUid);
+    // } else {
+    this.userRef = doc(this.db, 'users', this.roarUid!);
+    // }
   }
 
   async init() {
@@ -150,7 +150,7 @@ export class RoarAppUser {
     this.userData = removeUndefined({
       ...this.userMetadata,
       assessmentPid: this.assessmentPid,
-      assessmentUid: this.assessmentUid,
+      // assessmentUid: this.assessmentUid,
       userType: this.userType,
     });
 

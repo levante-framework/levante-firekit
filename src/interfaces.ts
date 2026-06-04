@@ -86,7 +86,7 @@ export interface UserDataInAdminDb extends DocumentData {
   userType: UserType;
   name?: Name;
   assessmentPid?: string;
-  assessmentUid?: string;
+  // assessmentUid?: string;
   assessmentsCompleted?: string[];
   assessmentsAssigned?: string[];
   assignmentsAssigned?: AssignmentDateMap;
