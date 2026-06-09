@@ -47,7 +47,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version-file: '.nvmrc'
-          cache: 'npm'
+          package-manager-cache: false
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
@@ -75,9 +75,7 @@ jobs:
         run: git push --follow-tags
 
       - name: Publish to npm
-        run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.LEVANTE_NPM_TOKEN }}
+        run: npm publish --access public
 
       - name: Create GitHub Release
         env:
