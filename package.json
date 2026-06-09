@@ -74,7 +74,7 @@
   ],
   "dependencies": {
     "@bdelab/roar-firekit": "^4.1.1",
-    "@levante-framework/levante-zod": "1.1.1",
+    "@levante-framework/levante-zod": "^1.2.0",
     "ajv": "^8.17.1",
     "ajv-errors": "^3.0.0",
     "crc-32": "^1.2.2",
