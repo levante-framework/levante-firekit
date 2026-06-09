@@ -39,7 +39,14 @@ import {
 } from 'firebase/firestore';
 import { httpsCallable, HttpsCallableResult } from 'firebase/functions';
 
-import type { GetSiteOverviewParams, GetSiteOverviewResult } from '@levante-framework/levante-zod';
+import type {
+  CreateUsersParams,
+  CreateUsersResult,
+  GetSiteOverviewParams,
+  GetSiteOverviewResult,
+  GetSyncStatusParams,
+  GetSyncStatusResult,
+} from '@levante-framework/levante-zod';
 
 import { AuthPersistence, MarkRawConfig, initializeFirebaseProject } from './firestore/util';
 import { FirebaseProject, Name, OrgLists, RoarConfig, StartTaskResult, UserDataInAdminDb } from './interfaces';
@@ -52,43 +59,6 @@ enum AuthProviderType {
   EMAIL = 'email',
   USERNAME = 'username',
   PASSWORD = 'password',
-}
-
-interface CreateUserInput {
-  email: string;
-  password?: string;
-  activationCode?: string;
-  dob: string;
-  grade: string;
-  pid?: string;
-  ell_status?: boolean;
-  iep_status?: boolean;
-  frl_status?: boolean;
-  state_id?: string;
-  gender?: string;
-  hispanic_ethnicity?: string;
-  race?: string[];
-  home_language?: string[];
-  name?: {
-    first?: string;
-    middle?: string;
-    last?: string;
-  };
-  username?: string;
-  unenroll?: boolean;
-  schools: { id: string } | null;
-  districts: { id: string } | null;
-  classes: { id: string } | null;
-  families: { id: string } | null;
-  groups: { id: string } | null;
-}
-
-export interface ChildData {
-  email: string;
-  password: string;
-  userData: CreateUserInput;
-  familyId: string;
-  orgCode: string;
 }
 
 interface CurrentAssignments {
@@ -1304,10 +1274,16 @@ export class RoarFirekit {
 
   async getSiteOverview(params: GetSiteOverviewParams): Promise<GetSiteOverviewResult> {
     this._verifyAuthentication();
+    const req = httpsCallable(this.admin!.functions, 'getSiteOverview');
+    const res = await req(params);
+    return res.data as GetSiteOverviewResult;
+  }
 
-    const cloudGetSiteOverview = httpsCallable(this.admin!.functions, 'getSiteOverview');
-    const response = await cloudGetSiteOverview(params);
-    return response.data as GetSiteOverviewResult;
+  async getSyncStatus(params: GetSyncStatusParams): Promise<GetSyncStatusResult> {
+    this._verifyAuthentication();
+    const req = httpsCallable(this.admin!.functions, 'getSyncStatus');
+    const res = await req(params);
+    return res.data as GetSyncStatusResult;
   }
 
   /**
@@ -1379,16 +1355,11 @@ export class RoarFirekit {
     });
   }
 
-  async createUsers(data: unknown) {
+  async createUsers(params: CreateUsersParams): Promise<CreateUsersResult> {
     this._verifyAuthentication();
-
-    const cloudCreateUsers = httpsCallable(this.admin!.functions, 'createUsers', {
-      // Client default is 70s; must be ≥ Cloud Function timeout or the call fails with deadline-exceeded first.
-      timeout: 540_000,
-    });
-
-    const result = await cloudCreateUsers(data);
-    return result;
+    const req = httpsCallable(this.admin!.functions, 'createUsers');
+    const res = await req(params);
+    return res.data as CreateUsersResult;
   }
 
   async saveSurveyResponses(surveyResponses: LevanteSurveyResponses) {

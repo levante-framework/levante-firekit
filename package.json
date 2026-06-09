@@ -16,7 +16,6 @@
     "prepublishOnly": "npm run lint",
     "preversion": "npm run lint",
     "version": "npm run format && git add -A src",
-    "postversion": "git push $(git remote -v | grep \"yeatmanlab/roar-firekit.git \\(push\\)\" | cut -f 1) && git push $(git remote -v | grep \"yeatmanlab/roar-firekit.git \\(push\\)\" | cut -f 1) --tags",
     "emulate:admin": "source src/__tests__/__utils__/emulate_admin.sh",
     "emulate:assessment": "source src/__tests__/__utils__/emulate_assessment.sh",
     "emulate:start": "npm run emulate:admin && npm run emulate:assessment",
@@ -74,7 +73,7 @@
   ],
   "dependencies": {
     "@bdelab/roar-firekit": "^4.1.1",
-    "@levante-framework/levante-zod": "1.1.1",
+    "@levante-framework/levante-zod": "^1.2.0",
     "ajv": "^8.17.1",
     "ajv-errors": "^3.0.0",
     "crc-32": "^1.2.2",
