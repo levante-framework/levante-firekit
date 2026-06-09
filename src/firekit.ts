@@ -61,43 +61,6 @@ enum AuthProviderType {
   PASSWORD = 'password',
 }
 
-interface CreateUserInput {
-  email: string;
-  password?: string;
-  activationCode?: string;
-  dob: string;
-  grade: string;
-  pid?: string;
-  ell_status?: boolean;
-  iep_status?: boolean;
-  frl_status?: boolean;
-  state_id?: string;
-  gender?: string;
-  hispanic_ethnicity?: string;
-  race?: string[];
-  home_language?: string[];
-  name?: {
-    first?: string;
-    middle?: string;
-    last?: string;
-  };
-  username?: string;
-  unenroll?: boolean;
-  schools: { id: string } | null;
-  districts: { id: string } | null;
-  classes: { id: string } | null;
-  families: { id: string } | null;
-  groups: { id: string } | null;
-}
-
-export interface ChildData {
-  email: string;
-  password: string;
-  userData: CreateUserInput;
-  familyId: string;
-  orgCode: string;
-}
-
 interface CurrentAssignments {
   assigned: string[];
   started: string[];
