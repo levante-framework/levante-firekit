@@ -46,6 +46,7 @@ import type {
   GetSiteOverviewResult,
   GetSyncStatusParams,
   GetSyncStatusResult,
+  ListUsersResult,
 } from '@levante-framework/levante-zod';
 
 import { AuthPersistence, MarkRawConfig, initializeFirebaseProject } from './firestore/util';
@@ -1401,5 +1402,12 @@ export class RoarFirekit {
     const cloudEditUsers = httpsCallable(this.admin!.functions, 'editUsers');
     const result = await cloudEditUsers({ users });
     return result;
+  }
+
+  async getOrgUsers(data: unknown): Promise<ListUsersResult> {
+    this._verifyAuthentication();
+    const cloudGetOrgUsers = httpsCallable(this.admin!.functions, 'getOrgUsers');
+    const result = await cloudGetOrgUsers(data);
+    return result.data as ListUsersResult;
   }
 }
