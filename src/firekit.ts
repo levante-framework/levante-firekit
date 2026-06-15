@@ -1,5 +1,6 @@
 import _get from 'lodash/get';
 import _isEmpty from 'lodash/isEmpty';
+import { FirebaseError } from 'firebase/app';
 import {
   AuthError,
   EmailAuthProvider,
@@ -40,13 +41,17 @@ import {
 import { httpsCallable, HttpsCallableResult } from 'firebase/functions';
 
 import type {
+  CreateUsersError,
   CreateUsersParams,
   CreateUsersResult,
   GetSiteOverviewParams,
   GetSiteOverviewResult,
   GetSyncStatusParams,
   GetSyncStatusResult,
+  ParsedFirebaseError,
+  ParsedFunctionsError,
 } from '@levante-framework/levante-zod';
+import { CreateUsersErrorSchema, FirebaseErrorSchema, FunctionsErrorSchema } from '@levante-framework/levante-zod';
 
 import { AuthPersistence, MarkRawConfig, initializeFirebaseProject } from './firestore/util';
 import { FirebaseProject, Name, OrgLists, RoarConfig, StartTaskResult, UserDataInAdminDb } from './interfaces';
@@ -1355,11 +1360,38 @@ export class RoarFirekit {
     });
   }
 
-  async createUsers(params: CreateUsersParams): Promise<CreateUsersResult> {
-    this._verifyAuthentication();
-    const req = httpsCallable(this.admin!.functions, 'createUsers');
-    const res = await req(params);
-    return res.data as CreateUsersResult;
+  async createUsers(params: CreateUsersParams): Promise<
+    | { code: 'success'; data: CreateUsersResult }
+    | { code: 'app-error'; data: CreateUsersError }
+    | { code: 'functions-error'; data: ParsedFunctionsError }
+    | { code: 'firebase-error'; data: ParsedFirebaseError }
+    | { code: 'error'; error: Error }
+  > {
+    try {
+      this._verifyAuthentication();
+      const req = httpsCallable(this.admin!.functions, 'createUsers');
+      const res = await req(params);
+      return { code: 'success', data: res.data as CreateUsersResult };
+    } catch (err: unknown) {
+      if (err instanceof FirebaseError) {
+        const createUsersError = CreateUsersErrorSchema.safeParse(err);
+        if (createUsersError.success)
+          return { code: 'app-error', data: createUsersError.data };
+
+        const functionsError = FunctionsErrorSchema.safeParse(err);
+        if (functionsError.success)
+          return { code: 'functions-error', data: functionsError.data };
+
+        const firebaseError = FirebaseErrorSchema.safeParse(err);
+        if (firebaseError.success)
+          return { code: 'firebase-error', data: firebaseError.data };
+      }
+
+      if (err instanceof Error)
+        return { code: 'error', error: err };
+
+      return { code: 'error', error: new Error('Unexpected createUsers error', { cause: err }) };
+    }
   }
 
   async saveSurveyResponses(surveyResponses: LevanteSurveyResponses) {
