@@ -1360,7 +1360,9 @@ export class RoarFirekit {
     });
   }
 
-  async createUsers(params: CreateUsersParams): Promise<
+  async createUsers(
+    params: CreateUsersParams,
+  ): Promise<
     | { code: 'success'; data: CreateUsersResult }
     | { code: 'app-error'; data: CreateUsersError }
     | { code: 'functions-error'; data: ParsedFunctionsError }
@@ -1375,20 +1377,16 @@ export class RoarFirekit {
     } catch (err: unknown) {
       if (err instanceof FirebaseError) {
         const createUsersError = CreateUsersErrorSchema.safeParse(err);
-        if (createUsersError.success)
-          return { code: 'app-error', data: createUsersError.data };
+        if (createUsersError.success) return { code: 'app-error', data: createUsersError.data };
 
         const functionsError = FunctionsErrorSchema.safeParse(err);
-        if (functionsError.success)
-          return { code: 'functions-error', data: functionsError.data };
+        if (functionsError.success) return { code: 'functions-error', data: functionsError.data };
 
         const firebaseError = FirebaseErrorSchema.safeParse(err);
-        if (firebaseError.success)
-          return { code: 'firebase-error', data: firebaseError.data };
+        if (firebaseError.success) return { code: 'firebase-error', data: firebaseError.data };
       }
 
-      if (err instanceof Error)
-        return { code: 'error', error: err };
+      if (err instanceof Error) return { code: 'error', error: err };
 
       return { code: 'error', error: new Error('Unexpected createUsers error', { cause: err }) };
     }
