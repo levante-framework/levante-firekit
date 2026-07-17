@@ -552,4 +552,14 @@ export class RoarRun {
       throw error;
     }
   }
+
+  async addStopType(stopType: string) {
+    if (!this.started) {
+      throw new Error('Run has not been started yet. Use the startRun method first.');
+    }
+
+    if (!this.aborted) {
+      return await updateDoc(this.runRef, { stopType: stopType });
+    }
+  }
 }

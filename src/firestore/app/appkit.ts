@@ -337,4 +337,12 @@ export class RoarAppkit {
     const storageRef = ref(this.firebaseProject!.storage, filePath);
     return getDownloadURL(storageRef);
   }
+
+  async updateStopType(stopType: string) {
+    if (this._started) {
+      return await this.run!.addStopType(stopType);
+    } else {
+      throw new Error('This run has not started. Use the startRun method first.');
+    }
+  }
 }
