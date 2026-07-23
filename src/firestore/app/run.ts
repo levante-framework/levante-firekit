@@ -249,7 +249,6 @@ export class RoarRun {
       // Same for demoData
       ...(this.demoData && { demoData: true }),
     };
-    console.log(runData.variantParams);
 
     const batch = writeBatch(this.user.db);
     batch.set(this.runRef, removeUndefined(runData));
