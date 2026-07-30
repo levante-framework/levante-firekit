@@ -239,6 +239,7 @@ export class RoarRun {
       timeFinished: null,
       reliable: false,
       userData: userDocData,
+      variantParams: this.task.variantParams,
       // Use conditional spreading to add the testData flag only if it exists on
       // the userDoc and is true.
       // Explaination: We use the && operator to return the object only when
