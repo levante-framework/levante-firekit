@@ -1,7 +1,7 @@
 import { onAuthStateChanged } from 'firebase/auth';
 import { updateDoc, arrayRemove, arrayUnion } from 'firebase/firestore';
 import { ref, getDownloadURL } from 'firebase/storage';
-import { ComputedScores, RawScores, RoarRun } from './run';
+import { ComputedScores, RawScores, RoarRun, StopReason } from './run';
 import { TaskVariantForAssessment, RoarTaskVariant } from './task';
 import { UserInfo, UserUpdateInput, RoarAppUser } from './user';
 import { FirebaseProject, OrgLists } from '../../interfaces';
@@ -336,5 +336,20 @@ export class RoarAppkit {
 
     const storageRef = ref(this.firebaseProject!.storage, filePath);
     return getDownloadURL(storageRef);
+  }
+
+  /**
+   * Persist the `stopReason` field to this run's Firestore document. Throws an
+   * error if the run has not been started yet, or if it has already been aborted
+   * and `stopReason` is anything other than `'taskAbort'`.
+   *
+   * @param stopReason - The reason the run was stopped (see {@link StopReason}).
+   */
+  async updateStopReason(stopReason: StopReason) {
+    if (this._started) {
+      await this.run!.updateStopReason(stopReason);
+    } else {
+      throw new Error('This run has not started. Use the startRun method first.');
+    }
   }
 }
