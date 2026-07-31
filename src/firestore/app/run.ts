@@ -565,8 +565,10 @@ export class RoarRun {
   async updateStopReason(stopReason: StopReason) {
     if (!this.started) {
       throw new Error('Run has not been started yet. Use the startRun method first.');
-    } else if (this.aborted) {
-      throw new Error('Run has already been aborted.');
+    } else if (this.aborted && stopReason !== 'taskAbort') {
+      throw new Error(
+        'Run has already been aborted. Only "taskAbort" is allowed as a stop reason after a run has been aborted.',
+      );
     } else {
       await updateDoc(this.runRef, { stopReason });
     }
