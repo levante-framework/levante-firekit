@@ -98,6 +98,8 @@ const castToTheta = (value: ThetaValue) => {
   return value as number;
 };
 
+export type StopReason = 'earlyCompletion' | 'errorOut' | 'sufficientTrials' | 'taskAbort' | 'timeOut';
+
 /**
  * Class representing a ROAR run.
  *
@@ -554,13 +556,19 @@ export class RoarRun {
     }
   }
 
-  async addStopType(stopType: string) {
+  /**
+   * Persist the `stopReason` field to this run's Firestore document. Throws an
+   * error if the run has not been started yet or has already been aborted.
+   *
+   * @param stopReason - The reason the run was stopped (see {@link StopReason}).
+   */
+  async updateStopReason(stopReason: StopReason) {
     if (!this.started) {
       throw new Error('Run has not been started yet. Use the startRun method first.');
-    }
-
-    if (!this.aborted) {
-      return await updateDoc(this.runRef, { stopType: stopType });
+    } else if (this.aborted) {
+      throw new Error('Run has already been aborted.');
+    } else {
+      await updateDoc(this.runRef, { stopReason });
     }
   }
 }
