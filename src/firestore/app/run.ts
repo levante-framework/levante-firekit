@@ -558,7 +558,8 @@ export class RoarRun {
 
   /**
    * Persist the `stopReason` field to this run's Firestore document. Throws an
-   * error if the run has not been started yet or has already been aborted.
+   * error if the run has not been started yet, or if it has already been aborted
+   * and `stopReason` is anything other than `'taskAbort'`.
    *
    * @param stopReason - The reason the run was stopped (see {@link StopReason}).
    */
