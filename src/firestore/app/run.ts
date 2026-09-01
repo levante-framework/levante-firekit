@@ -98,7 +98,13 @@ const castToTheta = (value: ThetaValue) => {
   return value as number;
 };
 
-export type StopReason = 'earlyCompletion' | 'errorOut' | 'sufficientTrials' | 'taskAbort' | 'timeOut';
+export type StopReason =
+  | 'earlyCompletion'
+  | 'errorOut'
+  | 'sufficientTrials'
+  | 'taskAbort'
+  | 'timeOut'
+  | 'experimenterExit';
 
 /**
  * Class representing a ROAR run.
