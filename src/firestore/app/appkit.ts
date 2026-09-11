@@ -126,11 +126,12 @@ export class RoarAppkit {
    * @param {string[]} input.tasks - The tasks to be added to the user doc
    * @param {string[]} input.variants - The variants to be added to the user doc
    * @param {string} input.assessmentPid - The assessment PID of the user
+   * @param {LocationV1} input.location - The user's location
    * @param {*} input.userMetadata - Any additional user metadata
    * @method
    * @async
    */
-  async updateUser({ tasks, variants, assessmentPid, ...userMetadata }: UserUpdateInput): Promise<void> {
+  async updateUser({ tasks, variants, assessmentPid, location, ...userMetadata }: UserUpdateInput): Promise<void> {
     if (!this._initialized) {
       await this._init();
     }
@@ -139,7 +140,7 @@ export class RoarAppkit {
       throw new Error('User must be authenticated to update their own data.');
     }
 
-    return await this.user!.updateUser({ tasks, variants, assessmentPid, ...userMetadata });
+    return await this.user!.updateUser({ tasks, variants, assessmentPid, location, ...userMetadata });
   }
 
   /**
