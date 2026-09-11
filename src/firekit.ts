@@ -39,24 +39,6 @@ import {
 } from 'firebase/firestore';
 import { httpsCallable, HttpsCallableResult } from 'firebase/functions';
 
-import type {
-  CreateUsersError,
-  CreateUsersParams,
-  CreateUsersResult,
-  GetSiteOverviewError,
-  GetSiteOverviewParams,
-  GetSiteOverviewResult,
-  GetSyncStatusError,
-  GetSyncStatusParams,
-  GetSyncStatusResult,
-} from '@levante-framework/levante-zod';
-import {
-  CreateUsersErrorSchema,
-  GetSiteOverviewErrorSchema,
-  GetSyncStatusErrorSchema,
-} from '@levante-framework/levante-zod';
-
-import { callFirebaseFunction } from './firebase-utils';
 import { AuthPersistence, MarkRawConfig, initializeFirebaseProject } from './firestore/util';
 import { FirebaseProject, Name, OrgLists, RoarConfig, StartTaskResult, UserDataInAdminDb } from './interfaces';
 import { UserInput } from './firestore/app/user';
@@ -1361,60 +1343,5 @@ export class RoarFirekit {
       console.error('Error saving survey responses in firekit', error);
       throw error;
     }
-  }
-
-  async linkUsers(data: unknown) {
-    this._verifyAuthentication();
-
-    const cloudLinkUsers = httpsCallable(this.admin!.functions, 'linkUsers');
-
-    const result = await cloudLinkUsers(data);
-    return result;
-  }
-
-  // Needs more work. Not being used.
-  async editUsers(
-    users: {
-      uid: string;
-      month: string;
-      year: string;
-      group: string;
-      district: string;
-      school: string;
-      class: string;
-    }[],
-  ) {
-    this._verifyAuthentication();
-
-    const cloudEditUsers = httpsCallable(this.admin!.functions, 'editUsers');
-    const result = await cloudEditUsers({ users });
-    return result;
-  }
-
-  async createUsers(params: CreateUsersParams) {
-    return callFirebaseFunction<CreateUsersParams, CreateUsersResult, CreateUsersError>(
-      this.admin?.functions,
-      'createUsers',
-      params,
-      CreateUsersErrorSchema,
-    );
-  }
-
-  async getSiteOverview(params: GetSiteOverviewParams) {
-    return callFirebaseFunction<GetSiteOverviewParams, GetSiteOverviewResult, GetSiteOverviewError>(
-      this.admin?.functions,
-      'getSiteOverview',
-      params,
-      GetSiteOverviewErrorSchema,
-    );
-  }
-
-  async getSyncStatus(params: GetSyncStatusParams) {
-    return callFirebaseFunction<GetSyncStatusParams, GetSyncStatusResult, GetSyncStatusError>(
-      this.admin?.functions,
-      'getSyncStatus',
-      params,
-      GetSyncStatusErrorSchema,
-    );
   }
 }
