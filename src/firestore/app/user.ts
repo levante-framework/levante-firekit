@@ -12,7 +12,7 @@ import {
 import _extend from 'lodash/extend';
 import { UserType } from '../../interfaces';
 import { removeUndefined } from '../util';
-import { LocationV1 } from './location'
+import { LocationV1 } from '../..';
 
 export interface UserInfo {
   roarUid?: string;
