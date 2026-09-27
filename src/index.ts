@@ -9,4 +9,7 @@ export {
   initializeFirebaseProject,
   type OfflineConfig,
 } from './firestore/util';
-export { LocationSchema, locationDocId, type LocationType as LocationV1 } from '@levante-framework/levante-zod';
+export {
+  CoarseLocationSchema as LocationSchema,
+  type CoarseLocation as LocationV1,
+} from '@levante-framework/levante-zod';
