@@ -188,7 +188,7 @@ export class RoarAppUser {
    * @method
    * @async
    */
-  async updateUser({ tasks, variants, assessmentPid, location, ...userMetadata}: UserUpdateInput): Promise<void> {
+  async updateUser({ tasks, variants, assessmentPid, location, ...userMetadata }: UserUpdateInput): Promise<void> {
     this.checkUserExists();
 
     let userData: FirestoreUserUpdate = {
