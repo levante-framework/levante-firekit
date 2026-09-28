@@ -1,6 +1,6 @@
 {
   "name": "@levante-framework/firekit",
-  "version": "9.7.1",
+  "version": "9.7.2",
   "description": "A library to facilitate Firebase authentication and Firestore interaction for LEVANTE apps",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -73,7 +73,7 @@
   ],
   "dependencies": {
     "@bdelab/roar-firekit": "^4.1.1",
-    "@levante-framework/levante-zod": "^2.2.0",
+    "@levante-framework/levante-zod": "^2.3.0",
     "ajv": "^8.17.1",
     "ajv-errors": "^3.0.0",
     "crc-32": "^1.2.2",
