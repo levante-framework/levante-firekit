@@ -12,6 +12,7 @@ import {
 import _extend from 'lodash/extend';
 import { UserType } from '../../interfaces';
 import { removeUndefined } from '../util';
+import type { CoarseLocation } from '@levante-framework/levante-zod';
 
 export interface UserInfo {
   roarUid?: string;
@@ -34,6 +35,7 @@ export interface UserUpdateInput {
   /** These are keys that all users can update */
   tasks?: string[];
   variants?: string[];
+  location?: CoarseLocation;
   /** And these are keys that only guest users will be able to create/update */
   assessmentPid?: string;
   [key: string]: unknown;
@@ -44,6 +46,7 @@ interface FirestoreUserUpdate {
   /** These are keys that all users can update */
   tasks?: ReturnType<typeof arrayUnion>;
   variants?: ReturnType<typeof arrayUnion>;
+  location?: CoarseLocation;
   lastUpdated?: ReturnType<typeof serverTimestamp>;
   /** And these are keys that only guest users will be able to create/update */
   assessmentPid?: string;
@@ -179,12 +182,13 @@ export class RoarAppUser {
    * @param {object} input
    * @param {string[]} input.tasks - The tasks to be added to the user doc
    * @param {string[]} input.variants - The variants to be added to the user doc
+   * @param {CoarseLocation} input.location - The user's location
    * @param {string} input.assessmentPid - The assessment PID of the user
    * @param {*} input.userMetadata - Any additional user metadata
    * @method
    * @async
    */
-  async updateUser({ tasks, variants, assessmentPid, ...userMetadata }: UserUpdateInput): Promise<void> {
+  async updateUser({ tasks, variants, location, assessmentPid, ...userMetadata }: UserUpdateInput): Promise<void> {
     this.checkUserExists();
 
     let userData: FirestoreUserUpdate = {
@@ -193,6 +197,7 @@ export class RoarAppUser {
 
     if (tasks) userData.tasks = arrayUnion(...tasks);
     if (variants) userData.variants = arrayUnion(...variants);
+    if (location) userData.location = location;
 
     if (this.userType === UserType.guest) {
       if (assessmentPid) userData.assessmentPid = assessmentPid;
@@ -206,6 +211,7 @@ export class RoarAppUser {
       ...userMetadata,
       tasks,
       variants,
+      location,
       assessmentPid,
     });
 
