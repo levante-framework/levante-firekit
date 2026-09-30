@@ -46,8 +46,8 @@ interface FirestoreUserUpdate {
   /** These are keys that all users can update */
   tasks?: ReturnType<typeof arrayUnion>;
   variants?: ReturnType<typeof arrayUnion>;
-  lastUpdated?: ReturnType<typeof serverTimestamp>;
   location?: CoarseLocation;
+  lastUpdated?: ReturnType<typeof serverTimestamp>;
   /** And these are keys that only guest users will be able to create/update */
   assessmentPid?: string;
   [key: string]: unknown;
@@ -182,13 +182,13 @@ export class RoarAppUser {
    * @param {object} input
    * @param {string[]} input.tasks - The tasks to be added to the user doc
    * @param {string[]} input.variants - The variants to be added to the user doc
-   * @param {string} input.assessmentPid - The assessment PID of the user
    * @param {CoarseLocation} input.location - The user's location
+   * @param {string} input.assessmentPid - The assessment PID of the user
    * @param {*} input.userMetadata - Any additional user metadata
    * @method
    * @async
    */
-  async updateUser({ tasks, variants, assessmentPid, location, ...userMetadata }: UserUpdateInput): Promise<void> {
+  async updateUser({ tasks, variants, location, assessmentPid, ...userMetadata }: UserUpdateInput): Promise<void> {
     this.checkUserExists();
 
     let userData: FirestoreUserUpdate = {
