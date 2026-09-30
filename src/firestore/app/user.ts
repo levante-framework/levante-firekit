@@ -12,7 +12,7 @@ import {
 import _extend from 'lodash/extend';
 import { UserType } from '../../interfaces';
 import { removeUndefined } from '../util';
-import { LocationV1 } from '../..';
+import type { CoarseLocation } from '@levante-framework/levante-zod';
 
 export interface UserInfo {
   roarUid?: string;
@@ -35,7 +35,7 @@ export interface UserUpdateInput {
   /** These are keys that all users can update */
   tasks?: string[];
   variants?: string[];
-  location?: LocationV1;
+  location?: CoarseLocation;
   /** And these are keys that only guest users will be able to create/update */
   assessmentPid?: string;
   [key: string]: unknown;
@@ -47,7 +47,7 @@ interface FirestoreUserUpdate {
   tasks?: ReturnType<typeof arrayUnion>;
   variants?: ReturnType<typeof arrayUnion>;
   lastUpdated?: ReturnType<typeof serverTimestamp>;
-  location?: LocationV1;
+  location?: CoarseLocation;
   /** And these are keys that only guest users will be able to create/update */
   assessmentPid?: string;
   [key: string]: unknown;
@@ -183,7 +183,7 @@ export class RoarAppUser {
    * @param {string[]} input.tasks - The tasks to be added to the user doc
    * @param {string[]} input.variants - The variants to be added to the user doc
    * @param {string} input.assessmentPid - The assessment PID of the user
-   * @param {LocationV1} input.location - The user's location
+   * @param {CoarseLocation} input.location - The user's location
    * @param {*} input.userMetadata - Any additional user metadata
    * @method
    * @async

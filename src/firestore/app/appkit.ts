@@ -126,7 +126,7 @@ export class RoarAppkit {
    * @param {string[]} input.tasks - The tasks to be added to the user doc
    * @param {string[]} input.variants - The variants to be added to the user doc
    * @param {string} input.assessmentPid - The assessment PID of the user
-   * @param {LocationV1} input.location - The user's location
+   * @param {CoarseLocation} input.location - The user's location
    * @param {*} input.userMetadata - Any additional user metadata
    * @method
    * @async
