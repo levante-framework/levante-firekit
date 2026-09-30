@@ -35,10 +35,10 @@ export interface UserUpdateInput {
   /** These are keys that all users can update */
   tasks?: string[];
   variants?: string[];
+  location?: LocationV1;
   /** And these are keys that only guest users will be able to create/update */
   assessmentPid?: string;
   [key: string]: unknown;
-  location?: LocationV1;
 }
 
 /** This interface holds data that the user can update on Firestore */
@@ -47,10 +47,10 @@ interface FirestoreUserUpdate {
   tasks?: ReturnType<typeof arrayUnion>;
   variants?: ReturnType<typeof arrayUnion>;
   lastUpdated?: ReturnType<typeof serverTimestamp>;
+  location?: LocationV1;
   /** And these are keys that only guest users will be able to create/update */
   assessmentPid?: string;
   [key: string]: unknown;
-  location?: LocationV1;
 }
 
 /** Class representing a ROAR user */
