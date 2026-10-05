@@ -400,9 +400,17 @@ export class RoarRun {
       updatedAt: serverTimestamp(),
     };
 
+    const scoredAssessmentStageValues = [
+      'test_response',
+      'practice_response',
+      'first_response',
+      'second_response',
+      'third_response',
+      'fourth_response',
+    ];
+
     // Only update scores if the trial was a test or a practice response.
-    const shouldUpdateScores =
-      trialData.assessment_stage === 'test_response' || trialData.assessment_stage === 'practice_response';
+    const shouldUpdateScores = scoredAssessmentStageValues.includes(trialData.assessment_stage as string);
 
     if (!shouldUpdateScores) {
       // Just write the trial, no score updates needed
@@ -425,7 +433,9 @@ export class RoarRun {
     // If no subtask is specified, the scores for the 'composite' subtask will be updated.
     const defaultSubtask = 'composite';
     const subtask = (trialData.subtask || defaultSubtask) as string;
-    const stage = (trialData.assessment_stage as string).split('_')[0] as 'test' | 'practice';
+    const stage: 'test' | 'practice' =
+      (trialData.assessment_stage as string).split('_')[0] === 'practice' ? 'practice' : 'test';
+
     const isCorrect = Boolean(trialData.correct);
 
     // Extract theta values
