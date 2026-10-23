@@ -40,7 +40,7 @@ import {
 import { httpsCallable, HttpsCallableResult } from 'firebase/functions';
 
 import { AuthPersistence, MarkRawConfig, initializeFirebaseProject } from './firestore/util';
-import { FirebaseProject, Name, OrgLists, RoarConfig, StartTaskResult, UserDataInAdminDb } from './interfaces';
+import { FirebaseProject, RoarConfig, StartTaskResult, UserDataInAdminDb } from './interfaces';
 import { UserInput } from './firestore/app/user';
 import { RoarAppkit } from './firestore/app/appkit';
 import { RoarTaskVariant, FirestoreVariantData, FirestoreTaskData, TaskVariantBase } from './firestore/app/task';
@@ -1212,30 +1212,6 @@ export class RoarFirekit {
     return sendPasswordResetEmail(this.admin!.auth, email).then(() => {
       this.verboseLog('Password reset email sent to', email);
     });
-  }
-
-  async createAdministrator(
-    email: string,
-    name: Name,
-    targetOrgs: OrgLists,
-    targetAdminOrgs: OrgLists,
-    isTestData = false,
-  ) {
-    this._verifyAuthentication();
-    this._verifyAdmin();
-
-    const cloudCreateAdministrator = httpsCallable(this.admin!.functions, 'createAdministratorAccount');
-    const adminResponse = await cloudCreateAdministrator({
-      email,
-      name,
-      orgs: targetOrgs,
-      adminOrgs: targetAdminOrgs,
-      isTestData,
-    });
-
-    if (_get(adminResponse.data as string, 'status') !== 'ok') {
-      throw new Error('Failed to create administrator user account.');
-    }
   }
 
   async createNewPermissionsAdmin(data: unknown) {
