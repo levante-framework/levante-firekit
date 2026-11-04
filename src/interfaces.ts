@@ -19,7 +19,6 @@ export interface FirebaseProject {
   storage: FirebaseStorage;
   perf?: FirebasePerformance;
   user?: User;
-  claimsLastUpdated?: Date;
 }
 
 type Grade = number | 'K' | 'PK' | 'TK';

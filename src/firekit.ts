@@ -32,7 +32,6 @@ import {
   doc,
   getDoc,
   getDocs,
-  onSnapshot,
   updateDoc,
   setDoc,
   serverTimestamp,
@@ -120,9 +119,6 @@ export class RoarFirekit {
   emulatorConfig?: Emulators;
   userData?: UserDataInAdminDb;
   listenerUpdateCallback: (...args: unknown[]) => void;
-  private _admin?: boolean;
-  private _adminClaimsListener?: Unsubscribe;
-  private _adminOrgs?: Record<string, string[]>;
   private _adminTokenListener?: Unsubscribe;
   private _authPersistence: AuthPersistence;
   private _identityProviderType?: AuthProviderType;
@@ -176,11 +172,9 @@ export class RoarFirekit {
   private _scrubAuthProperties() {
     this.userData = undefined;
     this.roarAppUserInfo = undefined;
-    this._adminOrgs = undefined;
     this._superAdmin = undefined;
     this.currentAssignments = undefined;
     this.oAuthAccessToken = undefined;
-    this._adminClaimsListener = undefined;
     this._adminTokenListener = undefined;
     this._idTokens = {};
   }
@@ -202,10 +196,8 @@ export class RoarFirekit {
         if (user) {
           this.verboseLog('admin firebase instance and user are defined');
           this.admin.user = user;
-          this._adminClaimsListener = this._listenToClaims(this.admin);
-          this.verboseLog('adminClaimsListener instance set up using listenToClaims');
           this._adminTokenListener = this._listenToTokenChange(this.admin, 'admin');
-          this.verboseLog('adminTokenListener instance set up using listenToClaims');
+          this.verboseLog('adminTokenListener instance set up using listenToTokenChange');
           this.verboseLog('[admin] Attempting to fire user.getIdToken(), existing token is', this._idTokens.admin);
           user.getIdToken().then((idToken) => {
             this.verboseLog('in .then() for user.getIdToken() with new token', idToken);
@@ -272,76 +264,9 @@ export class RoarFirekit {
     return true;
   }
 
-  private _verifyAdmin() {
-    if (!this.superAdmin && !this._admin) {
-      throw new Error('User is not an administrator.');
-    }
-  }
-
-  /**
-   * Listens for changes in the user's custom claims and updates the internal state accordingly.
-   *
-   * This method sets up a snapshot listener on the user's custom claims document in the admin Firebase project.
-   * When the listener detects changes in the claims, it updates the internal state of the `RoarAuth` instance.
-   * It also refreshes the user's ID token if the claims have been updated.
-   *
-   * @param {FirebaseFirestore.Firestore} firekit.db - The Firestore database instance for the admin Firebase project.
-   * @param {FirebaseAuth.User} firekit.user - The user object for the admin Firebase project.
-   * @returns {FirebaseFirestore.Unsubscribe} - The unsubscribe function to stop listening for changes in the user's custom claims.
-   * @throws {FirebaseError} - If there is an error setting up the snapshot listener.
-   */
-  private _listenToClaims(firekit: FirebaseProject) {
-    this.verboseLog('entry point to listenToClaims');
-    this._verifyInit();
-    if (firekit.user) {
-      this.verboseLog('firekit.user is defined');
-      let unsubscribe;
-      this.verboseLog('About to try setting up the claims listener');
-      try {
-        this.verboseLog('Beginning onSnapshot definition');
-        unsubscribe = onSnapshot(
-          doc(firekit.db, 'userClaims', firekit.user!.uid),
-          async (doc) => {
-            this.verboseLog('In onSnapshot call for listenToClaims');
-            const data = doc.data();
-            this._adminOrgs = data?.claims?.adminOrgs;
-            this._superAdmin = data?.claims?.super_admin;
-
-            if (this.roarConfig.admin.projectId.includes('levante')) {
-              this._admin = data?.claims?.admin || false;
-            }
-
-            this.verboseLog('about to check for existance of data.lastUpdated');
-            if (data?.lastUpdated) {
-              this.verboseLog('lastUpdate exists.');
-              const lastUpdated = new Date(data!.lastUpdated);
-              this.verboseLog(
-                'Checking for firekit.claimsLastUpdated existance or outdated (< lastUpdated from retrieved data)',
-              );
-              if (!firekit.claimsLastUpdated || lastUpdated > firekit.claimsLastUpdated) {
-                this.verboseLog(
-                  "Firekit's last updated either does not exist or is outdated. Await getIdToken and update firekit's claimsLastUpdated field.",
-                );
-                // Update the user's ID token and refresh claimsLastUpdated.
-                await getIdToken(firekit.user!, true);
-                firekit.claimsLastUpdated = lastUpdated;
-              }
-            }
-            this.verboseLog('Call listenerUpdateCallback from listenToClaims');
-            this.listenerUpdateCallback();
-          },
-          (error) => {
-            throw error;
-          },
-        );
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } catch (error: any) {
-        this.verboseLog('Attempt to set up claims listener failed. Error is', error);
-        if (error.code !== 'permission-denied') {
-          throw error;
-        }
-      }
-      return unsubscribe;
+  private _verifySuperAdmin() {
+    if (!this.superAdmin) {
+      throw new Error('User is not a super admin.');
     }
   }
 
@@ -384,6 +309,7 @@ export class RoarFirekit {
           this.verboseLog('user exists, await user.getIdTokenResult(false)');
           const idTokenResult = await user.getIdTokenResult(false);
           this.verboseLog('Returned with token', idTokenResult);
+          this._superAdmin = idTokenResult.claims?.super_admin === true;
           if (_type === 'admin') {
             this.verboseLog('Type is admin, set idTokenRecieved flag');
             this._idTokenReceived = true;
@@ -915,7 +841,6 @@ export class RoarFirekit {
    */
   async signOut() {
     this._verifyAuthentication();
-    if (this._adminClaimsListener) this._adminClaimsListener();
     if (this._adminTokenListener) this._adminTokenListener();
     this._scrubAuthProperties();
     await signOut(this.admin!.auth);
@@ -948,10 +873,6 @@ export class RoarFirekit {
         headers: { Authorization: `Bearer ${this._idTokens.admin}` },
       },
     };
-  }
-
-  public get adminOrgs() {
-    return this._adminOrgs;
   }
 
   public get dbRefs() {
@@ -1052,23 +973,8 @@ export class RoarFirekit {
   }
 
   public async getRoarUid() {
-    const userClaimsRef = doc(this.admin!.db, 'userClaims', this.admin!.user!.uid);
-    const userClaims = await getDoc(userClaimsRef).then((doc) => {
-      if (!doc.exists()) {
-        throw new Error('User claims document does not exist.');
-      }
-      return doc.data();
-    });
-
-    let _roarUid: string | undefined;
-    if (!_isEmpty(userClaims) && userClaims.claims.roarUid) {
-      _roarUid = userClaims.claims.roarUid;
-    } else {
-      _roarUid = this.admin?.user?.uid;
-    }
-
-    this._roarUid = _roarUid;
-    return _roarUid;
+    this._roarUid = this.admin?.user?.uid;
+    return this._roarUid;
   }
 
   async startAssessment(
@@ -1289,7 +1195,7 @@ export class RoarFirekit {
 
   async updateTaskOrVariant(updateData: UpdateTaskVariantData) {
     this._verifyAuthentication();
-    this._verifyAdmin();
+    this._verifySuperAdmin();
 
     let docRef;
     let dataType: string;
