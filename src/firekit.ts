@@ -12,7 +12,6 @@ import {
   getRedirectResult,
   isSignInWithEmailLink,
   linkWithCredential,
-  linkWithPopup,
   linkWithRedirect,
   onAuthStateChanged,
   onIdTokenChanged,
@@ -23,7 +22,6 @@ import {
   signInWithPopup,
   signInWithRedirect,
   signOut,
-  unlink,
 } from 'firebase/auth';
 import {
   Unsubscribe,
@@ -622,62 +620,6 @@ export class RoarFirekit {
   }
 
   /**
-   * Link the current user with the specified authentication provider using a popup window.
-   *
-   * This method opens a popup window to allow the user to sign in with the specified authentication provider.
-   * It then links the user's account with the current user in both the admin and app Firebase projects.
-   *
-   * @param {AuthProviderType} provider - The authentication provider to link with. It can be one of the following:
-   * - AuthProviderType.GOOGLE
-   *
-   * @returns {Promise<void>} - A promise that resolves when the user is successfully linked with the specified authentication provider.
-   *
-   * @throws {Error} - If the specified provider is not one of the allowed providers, an error is thrown.
-   */
-  async linkAuthProviderWithPopup(provider: AuthProviderType) {
-    this._verifyAuthentication();
-    const allowedProviders = [AuthProviderType.GOOGLE];
-
-    let authProvider;
-    if (provider === AuthProviderType.GOOGLE) {
-      authProvider = new GoogleAuthProvider();
-    } else {
-      throw new Error(`provider must be one of ${allowedProviders.join(', ')}. Received ${provider} instead.`);
-    }
-
-    const allowedErrors = ['auth/cancelled-popup-request', 'auth/popup-closed-by-user'];
-    const swallowAllowedErrors = (error: AuthError) => {
-      if (!allowedErrors.includes(error.code)) {
-        throw error;
-      }
-    };
-
-    let _oAuthAccessToken: string | undefined;
-
-    return linkWithPopup(this.admin!.auth!.currentUser!, authProvider)
-      .then(async (adminUserCredential) => {
-        this._identityProviderType = provider;
-        if (provider === AuthProviderType.GOOGLE) {
-          const credential = GoogleAuthProvider.credentialFromResult(adminUserCredential);
-          // This gives you a Google Access Token. You can use it to access Google APIs.
-          // TODO: Find a way to put this in the onAuthStateChanged handler
-          _oAuthAccessToken = credential?.accessToken;
-          return credential;
-        }
-      })
-      .catch(swallowAllowedErrors)
-      .then((credential) => {
-        if (credential) {
-          const claimsParams = {
-            identityProviderId: this._identityProviderId,
-            identityProviderType: this._identityProviderType,
-          };
-          return this._setUidCustomClaims(claimsParams);
-        }
-      });
-  }
-
-  /**
    * Initiates a redirect sign-in flow with the specified authentication provider.
    *
    * This method triggers a redirect to the authentication provider's sign-in page.
@@ -803,33 +745,6 @@ export class RoarFirekit {
         }
         return null;
       });
-  }
-
-  /**
-   * Unlinks the specified authentication provider from the current user.
-   *
-   * This method only unlinks the specified provider from the user in the admin Firebase project.
-   * The roarProciderIds.ROAR_ADMIN_PROJECT provider is maintained in the assessment Firebase project.
-   *
-   * @param {AuthProviderType} provider - The authentication provider to unlink.
-   * It can be one of the following: AuthProviderType.GOOGLE
-   * @returns {Promise<void>} - A promise that resolves when the provider is unlinked.
-   * @throws {Error} - If the provided provider is not one of the allowed providers.
-   */
-  async unlinkAuthProvider(provider: AuthProviderType) {
-    this._verifyAuthentication();
-
-    const allowedProviders = [AuthProviderType.GOOGLE];
-    const roarProviderIds = this._getProviderIds();
-
-    let providerId: string;
-    if (provider === AuthProviderType.GOOGLE) {
-      providerId = roarProviderIds.GOOGLE;
-    } else {
-      throw new Error(`provider must be one of ${allowedProviders.join(', ')}. Received ${provider} instead.`);
-    }
-
-    return unlink(this.admin!.auth!.currentUser!, providerId);
   }
 
   /**
