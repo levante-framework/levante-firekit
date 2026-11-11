@@ -1,3 +1,4 @@
+import { getAuth } from 'firebase/auth';
 import {
   FieldValue,
   arrayUnion,
@@ -97,6 +98,18 @@ const castToTheta = (value: ThetaValue) => {
   }
   return value as number;
 };
+
+export async function retryOnPermissionDenied(operation: () => Promise<void>, refreshAuth: () => Promise<void>) {
+  try {
+    await operation();
+  } catch (error) {
+    if (!(error instanceof FirebaseError) || error.code !== 'permission-denied') {
+      throw error;
+    }
+    await refreshAuth();
+    await operation();
+  }
+}
 
 export type StopReason =
   | 'earlyCompletion'
@@ -356,6 +369,13 @@ export class RoarRun {
     this.aborted = true;
   }
 
+  private async refreshIdToken() {
+    const currentUser = getAuth(this.user.db.app).currentUser;
+    if (currentUser) {
+      await currentUser.getIdToken(true);
+    }
+  }
+
   /**
    * Add a new trial to this run on Firestore
    * @method
@@ -407,7 +427,10 @@ export class RoarRun {
     if (!shouldUpdateScores) {
       // Just write the trial, no score updates needed
       try {
-        await setDoc(trialRef, trialDoc);
+        await retryOnPermissionDenied(
+          () => setDoc(trialRef, trialDoc),
+          () => this.refreshIdToken(),
+        );
       } catch (error) {
         console.error('Error writing trial to Firestore:', {
           error,
@@ -537,13 +560,16 @@ export class RoarRun {
       ...dot.dot(fullUpdatePath),
     };
 
-    const batch = writeBatch(this.user.db);
-    batch.set(trialRef, trialDoc);
-    batch.update(this.runRef, removeUndefined(scoreUpdate));
-    batch.update(this.user.userRef, { lastUpdated: serverTimestamp() });
+    const commitTrialBatch = async () => {
+      const batch = writeBatch(this.user.db);
+      batch.set(trialRef, trialDoc);
+      batch.update(this.runRef, removeUndefined(scoreUpdate));
+      batch.update(this.user.userRef, { lastUpdated: serverTimestamp() });
+      await batch.commit();
+    };
 
     try {
-      await batch.commit();
+      await retryOnPermissionDenied(commitTrialBatch, () => this.refreshIdToken());
     } catch (error) {
       // Catch the "Unsupported field value: undefined" error and
       // provide a more helpful error message to the ROAR app developer.
